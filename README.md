@@ -17,7 +17,7 @@ src/reranking/              reranking tương lai
 src/generation/             generation tương lai
 evaluation/                 đánh giá tương lai
 tests/test_health.py
-docs/rag-contract.md        hợp đồng BE ↔ AI
+docs/rag-architecture.md    kiến trúc RAG đã chốt và phần còn để mở
 ```
 
 ## Chạy local
@@ -31,7 +31,7 @@ uv run uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 
 Mở `http://127.0.0.1:8000/health` để kiểm tra. Chạy kiểm tra code bằng `uv run pytest -q` và `uv run ruff check .`.
 
-Đạt và Bảo dùng [hợp đồng RAG](docs/rag-contract.md) khi triển khai các luồng tương lai; BE giữ public API, quyền truy cập và Prisma migration.
+Đạt và Bảo dùng [kiến trúc RAG](docs/rag-architecture.md) để thống nhất ranh giới trách nhiệm. Tên job, API, schema và giao thức trả lời sẽ được chốt khi triển khai từng phase; BE giữ public API, quyền truy cập và Prisma migration.
 
 ## Kiểm tra PostgreSQL và pgvector
 

@@ -24,7 +24,7 @@ ai/
 ├── scripts/check_db.py
 ├── tests/test_health.py
 ├── tests/test_database.py
-├── docs/rag-contract.md
+├── docs/rag-architecture.md
 ├── .env.example
 ├── .gitignore
 ├── pyproject.toml
@@ -43,7 +43,7 @@ ai/
 
 ## Dependencies and workflow
 
-Keep Python 3.12, uv, FastAPI/Uvicorn, psycopg 3, pytest/httpx, and Ruff. Remove the current Hatch package target for `nexora_ai`; the project is a uv dependency project without a build system. Commit `uv.lock` again. `.env.example` contains only a placeholder `DATABASE_URL`; `.env` remains ignored. Run the API and check script from the repo root. Keep `docs/rag-contract.md` for the future BE ↔ AI interface.
+Keep Python 3.12, uv, FastAPI/Uvicorn, psycopg 3, pytest/httpx, and Ruff. Remove the current Hatch package target for `nexora_ai`; the project is a uv dependency project without a build system. Commit `uv.lock` again. `.env.example` contains only a placeholder `DATABASE_URL`; `.env` remains ignored. Run the API and check script from the repo root. Keep `docs/rag-architecture.md` for the future BE ↔ AI boundary.
 
 ## Outside Phase 0
 

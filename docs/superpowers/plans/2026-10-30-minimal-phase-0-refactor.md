@@ -4,7 +4,7 @@
 
 **Goal:** Replace the current `nexora_ai` skeleton with a direct `src/` layout that proves FastAPI health and read-only PostgreSQL/pgvector access.
 
-**Architecture:** FastAPI and the DB probe are independent: `/health` never touches PostgreSQL, while `scripts/check_db.py` is run manually. RAG stage folders and the Worker folder are placeholders only. Express/Prisma still own PostgreSQL migrations and the future BE ↔ AI contract remains in `docs/rag-contract.md`.
+**Architecture:** FastAPI and the DB probe are independent: `/health` never touches PostgreSQL, while `scripts/check_db.py` is run manually. RAG stage folders and the Worker folder are placeholders only. Express/Prisma still own PostgreSQL migrations and the future BE ↔ AI boundary is recorded in `docs/rag-architecture.md`.
 
 **Tech Stack:** Python 3.12, uv, FastAPI, Uvicorn, psycopg 3, pytest/httpx, Ruff.
 
@@ -16,7 +16,7 @@
 - No `__init__.py`, `nexora_ai/`, `agents/`, Worker implementation, or future RAG logic.
 - Probe only reads PostgreSQL; BE/Prisma owns `CREATE EXTENSION vector` and every business migration.
 - Keep `data/system_prompt.md` as a placeholder; no prompt loading or policy enforcement code in Phase 0.
-- Retain `docs/rag-contract.md`; BE currently has no runtime dependency on the removed AI schema snapshots.
+- Retain `docs/rag-architecture.md`; BE currently has no runtime dependency on the removed AI schema snapshots.
 - Do not add Docker packaging, LangChain, Langfuse integration, generated schemas, or extra business tests.
 - Preflight `uv --version`; the current agent shell has no `uv` on PATH, so locate/install the CLI before an execution task that needs `uv lock`.
 
@@ -66,7 +66,7 @@
 - [ ] Add `psycopg[binary]>=3.2,<4` to runtime dependencies. Implement `probe_pgvector()` with a bounded connect timeout, `SELECT extversion FROM pg_extension WHERE extname = 'vector'`, then `SELECT '[1,0]'::vector <-> '[0,1]'::vector` and verify the distance is approximately `sqrt(2)`; do not install the Python `pgvector` package just for this check.
 - [ ] Implement `scripts/check_db.py` using `DATABASE_URL` from the environment and the probe; no `__init__.py` or duplicated SQL. Document `uv run --env-file .env python -m scripts.check_db` and expected output in README.
 - [ ] Run `uv lock`, `uv sync --locked`, `uv run pytest -q`, `uv run ruff check .`, `uv run ruff format --check .`, and `git diff --check`; expect success. Run `check_db` against the existing BE PostgreSQL instance with pgvector and record its reported version; if no DB is reachable, report that live check as outstanding rather than claiming it passed.
-- [ ] Confirm `backend` has no runtime dependency on deleted AI files and that `docs/rag-contract.md` still matches the agreed future boundary; commit as `feat: add read-only PostgreSQL pgvector check`.
+- [ ] Confirm `backend` has no runtime dependency on deleted AI files and that `docs/rag-architecture.md` still matches the agreed future boundary; commit as `feat: add read-only PostgreSQL pgvector check`.
 
 ## Self-review and handoff
 
