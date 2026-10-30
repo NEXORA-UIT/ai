@@ -32,3 +32,13 @@ uv run uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 Mở `http://127.0.0.1:8000/health` để kiểm tra. Chạy kiểm tra code bằng `uv run pytest -q` và `uv run ruff check .`.
 
 Đạt và Bảo dùng [hợp đồng RAG](docs/rag-contract.md) khi triển khai các luồng tương lai; BE giữ public API, quyền truy cập và Prisma migration.
+
+## Kiểm tra PostgreSQL và pgvector
+
+Cấu hình `DATABASE_URL` trong `.env`, sau đó chạy:
+
+```powershell
+uv run --env-file .env python -m scripts.check_db
+```
+
+Khi thành công, lệnh in `PostgreSQL/pgvector check passed (vector <version>).` Lệnh chỉ đọc phiên bản extension và kiểm tra phép tính vector; BE/Prisma chịu trách nhiệm tạo extension và migration.
