@@ -1,1 +1,0 @@
-"""BullMQ worker process."""
