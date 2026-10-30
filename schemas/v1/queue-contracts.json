@@ -1,0 +1,6 @@
+{
+  "jobNames": {
+    "phase0Ping": "phase0.ping"
+  },
+  "queueName": "nexora-rag-ingestion"
+}

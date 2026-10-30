@@ -1,0 +1,88 @@
+{
+  "$defs": {
+    "CitationV1": {
+      "additionalProperties": false,
+      "properties": {
+        "chunkId": {
+          "format": "uuid",
+          "title": "Chunkid",
+          "type": "string"
+        },
+        "documentId": {
+          "format": "uuid",
+          "title": "Documentid",
+          "type": "string"
+        },
+        "documentName": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Documentname",
+          "type": "string"
+        },
+        "pageNumber": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pagenumber"
+        },
+        "snippet": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Snippet",
+          "type": "string"
+        },
+        "sourceLocator": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sourcelocator"
+        }
+      },
+      "required": [
+        "documentId",
+        "documentName",
+        "chunkId",
+        "snippet"
+      ],
+      "title": "CitationV1",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "citation": {
+      "$ref": "#/$defs/CitationV1"
+    },
+    "correlationId": {
+      "format": "uuid",
+      "title": "Correlationid",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "correlationId",
+    "citation"
+  ],
+  "title": "RagCitationEventV1",
+  "type": "object"
+}

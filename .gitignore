@@ -1,0 +1,10 @@
+.venv/
+.tools/
+.uv-cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+.env
+.local/
+.superpowers/

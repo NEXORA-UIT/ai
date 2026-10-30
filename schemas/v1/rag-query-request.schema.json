@@ -1,0 +1,35 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "boardId": {
+      "format": "uuid",
+      "title": "Boardid",
+      "type": "string"
+    },
+    "correlationId": {
+      "format": "uuid",
+      "title": "Correlationid",
+      "type": "string"
+    },
+    "question": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Question",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "boardId",
+    "correlationId",
+    "question"
+  ],
+  "title": "RagQueryRequestV1",
+  "type": "object"
+}
