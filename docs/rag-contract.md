@@ -1,6 +1,6 @@
 # Hợp đồng RAG giữa Express và AI service
 
-**Trạng thái:** quy ước để Đạt (ingestion) và Bảo (BE/retrieval) triển khai cùng lúc; các job, route và bảng RAG bên dưới chưa được code. Khi đổi tên trường hoặc ý nghĩa, sửa tài liệu này cùng thay đổi ở cả hai repo. Public FE ↔ BE vẫn theo OpenAPI của BE.
+**Trạng thái:** quy ước để Đạt triển khai ingestion và Bảo triển khai retrieval trong repo `ai`, đồng thời nhóm BE nối Express với AI service. Các job, route và bảng RAG bên dưới chưa được code. Khi đổi tên trường hoặc ý nghĩa, sửa tài liệu này cùng thay đổi ở cả hai repo. Public FE ↔ BE vẫn theo OpenAPI của BE.
 
 ## Ranh giới sở hữu
 
@@ -64,7 +64,7 @@ Citation có `documentId`, `documentName`, `chunkId`, `snippet` (tối đa 1000 
 
 ## Thứ tự triển khai
 
-1. Bảo chốt Prisma schema, status/revision và BE producer; Đạt có thể làm parser, chunker và validation job song song.
+1. Nhóm BE chốt Prisma schema, status/revision và producer; Đạt có thể làm parser, chunker và validation job song song.
 2. Đạt làm lát dọc một file TXT: upload → job → Tika → chunk/embed → `READY`.
-3. Bảo làm board-scoped retrieval và stream qua Express; hai bên kiểm tra một câu trả lời có citation và một job revision cũ.
+3. Bảo làm retrieval theo board và stream trong FastAPI; nhóm BE proxy stream qua Express. Hai bên kiểm tra một câu trả lời có citation và một job revision cũ.
 4. Sau lát dọc mới thêm PDF/DOCX, Langfuse và Agent.

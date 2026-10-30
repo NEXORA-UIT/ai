@@ -30,4 +30,4 @@ Mở `http://127.0.0.1:8000/health` để kiểm tra. Chạy kiểm tra code b�
 
 ## Bước tiếp theo
 
-Đạt triển khai Worker và ingestion trong `rag/`. Bảo triển khai FastAPI query và phần Express tương ứng. Hai bên dùng [hợp đồng RAG](docs/rag-contract.md) trước khi viết payload/route; Express giữ public API, quyền truy cập và Prisma migration.
+Đạt triển khai Worker và ingestion trong `rag/`. Bảo triển khai retrieval và query trong FastAPI; nhóm BE nối Express với AI service. Hai bên dùng [hợp đồng RAG](docs/rag-contract.md) trước khi viết payload/route; Express giữ public API, quyền truy cập và Prisma migration.
