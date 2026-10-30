@@ -15,15 +15,9 @@ dev = [
     "ruff>=0.9,<1",
 ]
 
-[build-system]
-requires = ["hatchling>=1.26"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/nexora_ai"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 88

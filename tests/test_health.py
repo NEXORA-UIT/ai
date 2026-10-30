@@ -1,9 +1,11 @@
 from fastapi.testclient import TestClient
 
-from nexora_ai.api.main import app
 
+def test_health_is_independent_of_database(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "invalid://unreachable")
 
-def test_health():
-    response = TestClient(app).get("/health")
+    from src.main import create_app
+
+    response = TestClient(create_app()).get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}

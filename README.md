@@ -1,33 +1,34 @@
 # Nexora AI
 
-Python service cho phần AI của Nexora. Hiện repo chỉ chạy FastAPI với `GET /health`. Pipeline RAG, Python Worker và Agent chưa được triển khai.
+Python service cho phần AI của Nexora. Hiện repo chỉ chạy FastAPI với `GET /health`. Các thư mục RAG và Worker là placeholder, chưa có runtime.
 
 ## Cấu trúc hiện tại
 
 ```text
-src/nexora_ai/
-├── api/main.py                 FastAPI và health check
-├── rag/                       chỗ triển khai ingestion/retrieval sau này
-├── agents/                    một thư mục Agent để dành
-└── infrastructure/langfuse/   placeholder, chưa tích hợp
+config/                     cấu hình tương lai
+data/system_prompt.md       placeholder, chưa được load
+src/main.py                 FastAPI và health check
+src/worker/                 Worker tương lai
+src/ingestion/              ingestion tương lai
+src/chunking/               chunking tương lai
+src/embedding/              embedding tương lai
+src/retrieval/              retrieval tương lai
+src/reranking/              reranking tương lai
+src/generation/             generation tương lai
+evaluation/                 đánh giá tương lai
 tests/test_health.py
-docs/rag-contract.md           hợp đồng BE ↔ AI và bàn giao cho Đạt/Bảo
+docs/rag-contract.md        hợp đồng BE ↔ AI
 ```
-
-Không tạo thêm `models/`, `tools/`, `prompts/` hay các tầng con trước khi có logic thực tế. `nexora_ai` là namespace Python; `rag/` và `agents/` là hai thư mục trống trong namespace này.
 
 ## Chạy local
 
-Cần Python 3.12 và [uv](https://docs.astral.sh/uv/). Chưa cần Redis, PostgreSQL hay Docker để chạy health check.
+Cần Python 3.12 và [uv](https://docs.astral.sh/uv/). Chạy các lệnh từ thư mục gốc của repo AI. Health check không cần PostgreSQL hoặc biến môi trường.
 
 ```powershell
-uv sync
-.\.venv\Scripts\Activate.ps1
-python -m uvicorn nexora_ai.api.main:app --host 127.0.0.1 --port 8000 --reload
+uv sync --locked
+uv run uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Mở `http://127.0.0.1:8000/health` để kiểm tra. Chạy kiểm tra code bằng `uv run pytest -q` và `uv run ruff check .`.
 
-## Bước tiếp theo
-
-Đạt triển khai Worker và ingestion trong `rag/`. Bảo triển khai retrieval và query trong FastAPI; nhóm BE nối Express với AI service. Hai bên dùng [hợp đồng RAG](docs/rag-contract.md) trước khi viết payload/route; Express giữ public API, quyền truy cập và Prisma migration.
+Đạt và Bảo dùng [hợp đồng RAG](docs/rag-contract.md) khi triển khai các luồng tương lai; BE giữ public API, quyền truy cập và Prisma migration.
