@@ -1,6 +1,6 @@
 import pytest
 
-from nexora_ai.core.config import Settings
+from nexora_ai.settings import Settings
 
 
 def test_worker_requires_redis_and_express_without_leaking_credentials():

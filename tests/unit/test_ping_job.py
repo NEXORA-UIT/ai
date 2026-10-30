@@ -4,7 +4,7 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from nexora_ai.worker.handlers.phase0 import PING_JOB_NAME, dispatch_job, handle_ping
+from nexora_ai.worker.ping import PING_JOB_NAME, dispatch_job, handle_ping
 
 
 @pytest.fixture

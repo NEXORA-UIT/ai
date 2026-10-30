@@ -7,10 +7,7 @@ import pytest
     "module_name",
     (
         "nexora_ai.rag",
-        "nexora_ai.rag.ingestion",
-        "nexora_ai.rag.retrieval",
-        "nexora_ai.rag.generation",
-        "nexora_ai.agent",
+        "nexora_ai.agents",
     ),
 )
 def test_ai_feature_modules_have_separate_importable_boundaries(

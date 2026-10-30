@@ -1,7 +1,7 @@
 """Canonical contract registry used to export schemas for other services."""
 
 from nexora_ai.contracts.ingestion import IngestionJobV1
-from nexora_ai.contracts.phase0 import PingJobV1, PingResultV1
+from nexora_ai.contracts.ping import PingJobV1, PingResultV1
 from nexora_ai.contracts.retrieval import (
     CitationV1,
     RagAnswerDeltaEventV1,

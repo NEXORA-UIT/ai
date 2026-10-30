@@ -8,7 +8,7 @@ This note is the short checklist to use before starting the full RAG flow. The a
 - Both are Python modules in one installable package and share Pydantic settings/contracts.
 - Express can enqueue the Phase 0 probe on the shared BullMQ queue; only the Python Worker consumes the RAG queue.
 - PostgreSQL access and pgvector probing use psycopg 3; Prisma owns migrations.
-- The RAG and Agent packages are separate placeholders.
+- The `rag/` and `agents/` packages are separate placeholders. Add real RAG modules as the flow is implemented; keep a single `agents/` package for now.
 - No business ingestion/query logic is included.
 
 ## Before Đạt implements ingestion

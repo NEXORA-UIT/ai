@@ -1,5 +1,7 @@
 # Nexora AI RAG Foundation Reorganization Implementation Plan
 
+> Historical implementation plan. See the [README](../../../README.md) for the current package layout; later cleanup consolidated the placeholder folders and renamed `agent/` to `agents/`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deliver an accurately named AI service repo, explicit RAG/Agent module boundary, SRS-aligned RAG architecture handoff, and passing Python/BE foundation checks.

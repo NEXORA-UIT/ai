@@ -1,5 +1,7 @@
 # Nexora RAG Phase 0 Implementation Plan
 
+> Package paths below reflect the original Phase 0 implementation. The current layout is in the [README](../../../README.md).
+
 > **Cập nhật 2026-10-29:** Đây là kế hoạch và bằng chứng triển khai lịch sử.
 > Theo quyết định mới, Docker packaging của riêng `ai` đã được gỡ;
 > API/Worker chạy bằng hai process local theo [README](../../../README.md).

@@ -2,7 +2,7 @@
 
 import httpx
 
-from nexora_ai.contracts.phase0 import PingJobV1, PingResultV1
+from nexora_ai.contracts.ping import PingJobV1, PingResultV1
 from nexora_ai.contracts.queue import PHASE0_PING_JOB_NAME
 
 PING_JOB_NAME = PHASE0_PING_JOB_NAME

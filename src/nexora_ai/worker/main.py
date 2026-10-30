@@ -9,8 +9,8 @@ from bullmq import Job, Worker
 from redis.asyncio import Redis
 
 from nexora_ai.contracts.queue import QUEUE_NAME
-from nexora_ai.core.config import Settings
-from nexora_ai.worker.handlers.phase0 import dispatch_job
+from nexora_ai.settings import Settings
+from nexora_ai.worker.ping import dispatch_job
 
 logger = logging.getLogger("nexora_ai.worker")
 JobProcessor = Callable[[Job, str | None], Awaitable[dict[str, object]]]

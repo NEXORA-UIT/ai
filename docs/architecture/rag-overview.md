@@ -146,7 +146,7 @@ flowchart LR
     BE -->|approval + idempotency + OCC| DB
 ~~~
 
-RAG lập chỉ mục tài liệu và trả lời dựa trên nguồn. Agent là module tương lai để chọn công cụ như getCards hoặc searchDocuments. Package Python giữ src/nexora_ai/rag và src/nexora_ai/agent tách nhau; Agent không thuộc ingestion hoặc vector retrieval. Chưa thêm LangGraph/Agent loop. Express vẫn sở hữu quyền truy cập và mutation; AI chỉ tạo proposal, Express thực thi sau phê duyệt và kiểm tra idempotency/OCC theo SRS.
+RAG lập chỉ mục tài liệu và trả lời dựa trên nguồn. Agent là module tương lai để chọn công cụ như getCards hoặc searchDocuments. Package Python giữ `src/nexora_ai/rag/` và một thư mục `src/nexora_ai/agents/` tách nhau. Hiện cả hai chỉ là ranh giới package; module ingestion, retrieval, generation sẽ được thêm vào `rag/` khi có logic thật. Chưa thêm LangGraph/Agent loop. Express vẫn sở hữu quyền truy cập và mutation; AI chỉ tạo proposal, Express thực thi sau phê duyệt và kiểm tra idempotency/OCC theo SRS.
 
 ## Contract và trạng thái
 

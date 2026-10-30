@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from nexora_ai.contracts.phase0 import PingJobV1, PingResultV1
+from nexora_ai.contracts.ping import PingJobV1, PingResultV1
 
 
 def test_ping_payload_round_trips_in_node_json_shape():

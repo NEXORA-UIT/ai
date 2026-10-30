@@ -1,5 +1,7 @@
 # Nexora AI Foundation and RAG Handoff
 
+> Historical foundation design. The current package layout is documented in the [README](../../../README.md): `agents/` is the single Agent placeholder, and empty RAG subpackages were removed.
+
 ## Intent
 
 Prepare the existing Python Phase 0 service for the next implementation stage: a minimal end-to-end document ingestion and RAG query slice that Đạt and Bảo can build without guessing service ownership or changing the SRS architecture. The repository is named `ai`; its Python package is `nexora_ai`.

@@ -33,7 +33,7 @@ RAG ingestion chỉ có Python Worker consume queue. BE không có Node Worker d
 - **RAG** đọc và lập chỉ mục tài liệu, tìm đoạn liên quan theo board, rồi tạo câu trả lời có nguồn dẫn.
 - **Agent** là lớp điều phối về sau: quyết định gọi công cụ như getCards hoặc searchDocuments theo yêu cầu của người dùng.
 - Agent có thể gọi năng lực retrieval của RAG, nhưng không đặt logic Agent vào ingestion hoặc truy vấn vector. Express vẫn sở hữu auth/RBAC và mọi mutation; đề xuất thay đổi phải được Express xác minh, yêu cầu phê duyệt và áp dụng quy tắc idempotency/OCC.
-- Thư mục agent hiện chỉ giữ ranh giới package. Chưa thêm LangGraph hay vòng lặp Agent.
+- `agents/` hiện chỉ là ranh giới package. Chưa thêm LangGraph hay vòng lặp Agent.
 
 ## Stack đã chọn
 
@@ -61,21 +61,20 @@ BGE-M3 runtime chưa được chốt chạy local hay qua endpoint. API và Work
 
     ai/
     ├── src/nexora_ai/
-    │   ├── api/                 # FastAPI process
-    │   ├── worker/              # Python BullMQ process
-    │   ├── rag/
-    │   │   ├── ingestion/       # Tika → split → embed → index (sẽ triển khai)
-    │   │   ├── retrieval/       # board-scoped search (sẽ triển khai)
-    │   │   └── generation/      # grounded answer + citations (sẽ triển khai)
-    │   ├── agent/               # tool orchestration về sau, hiện để trống
-    │   ├── contracts/           # Pydantic payloads và queue protocol
-    │   ├── core/                # cấu hình dùng chung
-    │   └── infrastructure/      # psycopg/pgvector; Langfuse placeholder
-    ├── schemas/v1/              # JSON Schema export cho BE
+    │   ├── api/main.py           # FastAPI entrypoint
+    │   ├── worker/               # BullMQ entrypoint và ping job mẫu
+    │   │   ├── main.py
+    │   │   └── ping.py
+    │   ├── rag/                  # RAG flow của Đạt/Bảo, hiện chưa có logic
+    │   ├── agents/               # một package dự phòng cho Agent
+    │   ├── contracts/            # payload Pydantic và queue protocol
+    │   ├── settings.py           # cấu hình chung cho API và Worker
+    │   └── infrastructure/       # truy cập PostgreSQL; Langfuse placeholder
+    ├── schemas/v1/               # JSON Schema export cho BE
     ├── tests/
     └── docs/architecture/
 
-API và Worker dùng cùng package nhưng chạy bằng hai process độc lập. Tên repo là ai; namespace Python là nexora_ai.
+API và Worker dùng cùng package nhưng chạy bằng hai process độc lập. Tên repo là ai; namespace Python là nexora_ai. Khi triển khai full flow, thêm module thật vào `rag/` theo chức năng; chỉ tách thư mục con khi một chức năng có nhiều file. `agents/` giữ một thư mục cho đến khi có workflow Agent cụ thể.
 
 ## Chạy local, không dùng Docker cho Python
 
