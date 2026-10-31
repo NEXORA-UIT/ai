@@ -9,11 +9,13 @@ Usage:
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 from src.ingestion.chunker import chunk_document
 from src.ingestion.exceptions import IngestionError
 from src.ingestion.pipeline import extract_and_clean
+from src.ingestion.schemas import EmbeddedDocument
 from src.ingestion.tokenizer import BgeM3Tokenizer, WhitespaceTokenCounter
 
 
@@ -78,10 +80,56 @@ def main() -> int:
         action="store_true",
         help="Use fast whitespace tokenizer for testing/offline mode instead of BGE-M3",
     )
+    parser.add_argument(
+        "--embed",
+        action="store_true",
+        help=(
+            "Enable dense embedding preview with BAAI/bge-m3 "
+            "(automatically enables chunking)"
+        ),
+    )
+    parser.add_argument(
+        "--device",
+        choices=["cpu", "cuda"],
+        default="cpu",
+        help="Device for embedding inference (default: cpu)",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=8,
+        help="Inference batch size for embedding (default: 8)",
+    )
+    parser.add_argument(
+        "--export-vectors",
+        action="store_true",
+        help="Include complete 1024-d vectors in JSON output (default: excluded)",
+    )
 
     args = parser.parse_args()
 
-    # Early validation of chunking parameters before invoking external services
+    # Early validation of embedding and chunking parameters
+    # before invoking external services
+    if args.embed:
+        args.chunk = True
+        if args.batch_size < 1:
+            print(
+                f"[ERROR] batch-size must be >= 1, got {args.batch_size}",
+                file=sys.stderr,
+            )
+            return 1
+        if args.device == "cuda":
+            import torch
+
+            if not torch.cuda.is_available():
+                print(
+                    "[ERROR] CUDA was explicitly requested (--device cuda), but "
+                    "torch.cuda.is_available() is False. "
+                    "Nexora does not fall back silently.",
+                    file=sys.stderr,
+                )
+                return 1
+
     if args.chunk:
         if args.chunk_size < 1:
             print(
@@ -134,6 +182,42 @@ def main() -> int:
             print(f"[ERROR] Chunking failed: {exc}", file=sys.stderr)
             return 1
 
+    embedded_doc = None
+    model_load_time = 0.0
+    encode_time = 0.0
+    if args.embed and chunked:
+        try:
+            from src.embedding.embedder import BgeM3Embedder
+
+            t0 = time.perf_counter()
+            embedder = BgeM3Embedder(device=args.device, batch_size=args.batch_size)
+            embedder._get_model()
+            t1 = time.perf_counter()
+            model_load_time = t1 - t0
+
+            t2 = time.perf_counter()
+            embedded_chunks = embedder.embed_chunks(
+                chunked.chunks, batch_size=args.batch_size
+            )
+            t3 = time.perf_counter()
+            encode_time = t3 - t2
+
+            embedded_doc = EmbeddedDocument(
+                document_name=chunked.document_name,
+                total_chunks=len(embedded_chunks),
+                total_tokens=chunked.total_tokens,
+                chunks=embedded_chunks,
+                model_name=embedder.model_name,
+                model_revision=embedder.revision or "",
+                dimension=embedder.dimension,
+                normalized=True,
+                chunking_version=chunked.chunking_version,
+                cleaning_version=cleaned.cleaning_version,
+            )
+        except Exception as exc:
+            print(f"[ERROR] Embedding failed: {exc}", file=sys.stderr)
+            return 1
+
     if args.json:
         data = {
             "file_name": cleaned.file_name,
@@ -178,6 +262,37 @@ def main() -> int:
                         "content": c.content,
                     }
                     for c in chunked.chunks
+                ],
+            }
+        if embedded_doc:
+            data["embedding"] = {
+                "model_name": embedded_doc.model_name,
+                "model_revision": embedded_doc.model_revision,
+                "dimension": embedded_doc.dimension,
+                "normalized": embedded_doc.normalized,
+                "device": args.device,
+                "batch_size": args.batch_size,
+                "model_load_time_seconds": round(model_load_time, 3),
+                "encode_time_seconds": round(encode_time, 3),
+                "total_embedded_chunks": len(embedded_doc.chunks),
+                "chunks": [
+                    {
+                        "chunk_index": ec.chunk.chunk_index,
+                        "token_count": ec.chunk.token_count,
+                        "page_number": ec.chunk.page_number,
+                        "l2_norm": round(
+                            sum(x * x for x in ec.dense_embedding) ** 0.5, 6
+                        ),
+                        "embedding_preview": [
+                            round(x, 4) for x in ec.dense_embedding[:5]
+                        ],
+                        **(
+                            {"dense_embedding": ec.dense_embedding}
+                            if args.export_vectors
+                            else {}
+                        ),
+                    }
+                    for ec in embedded_doc.chunks
                 ],
             }
         if args.raw:
@@ -248,7 +363,43 @@ def main() -> int:
             print(c.content[:300])
             if len(c.content) > 300:
                 print("...")
-    else:
+
+    if embedded_doc:
+        print("\n" + "=" * 60)
+        print("NEXORA RAG DENSE EMBEDDING PREVIEW [BAAI/bge-m3]")
+        print("=" * 60)
+        print(f"Total Vectors:     {len(embedded_doc.chunks)}")
+        print(f"Vector Dimension:  {embedded_doc.dimension}")
+        print(f"L2 Normalized:     {embedded_doc.normalized}")
+        print(f"Model ID:          {embedded_doc.model_name}")
+        print(f"Model Revision:    {embedded_doc.model_revision}")
+        print(f"Device:            {args.device}")
+        print(f"Batch Size:        {args.batch_size}")
+        print(f"Model Load Time:   {model_load_time:.2f}s")
+        print(
+            f"Encode Time:       {encode_time:.2f}s "
+            f"({(encode_time / max(len(embedded_doc.chunks), 1)) * 1000:.1f} ms/chunk)"
+        )
+
+        print("\n--- EMBEDDED CHUNK SAMPLES ---")
+        for ec in embedded_doc.chunks[:3]:
+            c = ec.chunk
+            vec = ec.dense_embedding
+            p_str = f"Page {c.page_number}" if c.page_number else "None"
+            vec_preview = [round(x, 4) for x in vec[:5]]
+            norm = sum(x * x for x in vec) ** 0.5
+            print(
+                f"\nChunk #{c.chunk_index} "
+                f"[Tokens: {c.token_count} | Page: {p_str} | L2 Norm: {norm:.4f}]"
+            )
+            print(f"First 5 Dimensions: {vec_preview} ...")
+            print("-" * 60)
+            print(c.content[:200])
+            if len(c.content) > 200:
+                print("...")
+        if len(embedded_doc.chunks) > 3:
+            print(f"\n... and {len(embedded_doc.chunks) - 3} more embedded chunks.")
+    elif not chunked:
         print("\n--- CLEANED TEXT PREVIEW (First 500 chars) ---")
         print(cleaned.cleaned_text[:500])
         if len(cleaned.cleaned_text) > 500:

@@ -141,3 +141,52 @@ class ChunkedDocument:
     chunks: list[Chunk]
     chunking_version: str = "1.0.0"
     config: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class EmbeddedChunk:
+    """A semantic text chunk paired with its dense vector embedding.
+
+    Attributes:
+        chunk: The underlying Chunk instance.
+        dense_embedding: Dense vector embedding (1024 float elements, L2 normalized).
+    """
+
+    chunk: Chunk
+    dense_embedding: list[float]
+
+    def __post_init__(self) -> None:
+        if len(self.dense_embedding) != 1024:
+            raise ValueError(
+                f"dense_embedding dimension must be 1024, "
+                f"got {len(self.dense_embedding)}"
+            )
+
+
+@dataclass(frozen=True)
+class EmbeddedDocument:
+    """Complete collection of embedded chunks produced from a document.
+
+    Attributes:
+        document_name: Original file/document name.
+        total_chunks: Number of chunks embedded.
+        total_tokens: Sum of tokens across all chunks.
+        chunks: Ordered list of EmbeddedChunk objects.
+        model_name: Identifier of the embedding model used.
+        model_revision: Revision commit hash of the model.
+        dimension: Embedding dimensionality (default: 1024).
+        normalized: Whether embeddings are L2 normalized (default: True).
+        chunking_version: Semantic version of chunking algorithm used.
+        cleaning_version: Semantic version of cleaning algorithm used.
+    """
+
+    document_name: str
+    total_chunks: int
+    total_tokens: int
+    chunks: list[EmbeddedChunk]
+    model_name: str
+    model_revision: str
+    dimension: int = 1024
+    normalized: bool = True
+    chunking_version: str = "1.0.0"
+    cleaning_version: str = "1.0.0"

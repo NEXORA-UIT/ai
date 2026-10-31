@@ -2,9 +2,13 @@
 
 from unittest.mock import MagicMock, patch
 
-from src.ingestion.pipeline import extract_and_clean
+from src.ingestion.pipeline import (
+    extract_and_clean,
+    extract_clean_and_chunk,
+    extract_clean_chunk_and_embed,
+)
 from src.ingestion.preview import main
-from src.ingestion.schemas import ExtractionResult
+from src.ingestion.schemas import EmbeddedChunk, ExtractionResult
 
 
 class TestPipeline:
@@ -111,7 +115,6 @@ class TestPipeline:
         assert "[ERROR]" in captured.err
 
     def test_extract_clean_and_chunk_success(self, tmp_path):
-        from src.ingestion.pipeline import extract_clean_and_chunk
         from src.ingestion.tokenizer import WhitespaceTokenCounter
 
         test_file = tmp_path / "chunk_pipeline.txt"
@@ -210,3 +213,119 @@ class TestPipeline:
 
             captured = capsys.readouterr()
             assert "[ERROR] chunk-size must be >= 1" in captured.err
+
+    def test_extract_clean_chunk_and_embed_success(self, tmp_path):
+        test_file = tmp_path / "embed_doc.txt"
+        test_file.write_text("Đoạn một cho pipeline embedding.", encoding="utf-8")
+
+        mock_extraction = ExtractionResult(
+            raw_text="Đoạn một cho pipeline embedding.\n",
+            file_name="embed_doc.txt",
+            mime_type="text/plain",
+            metadata={},
+            page_count=None,
+            has_form_feeds=False,
+        )
+
+        mock_embedder = MagicMock()
+        mock_embedder.model_name = "BAAI/bge-m3"
+        mock_embedder.revision = "5617a9f61b028005a4858fdac845db406aefb181"
+        mock_embedder.dimension = 1024
+        mock_embedder.embed_chunks.side_effect = lambda chunks, batch_size=8: [
+            EmbeddedChunk(chunk=c, dense_embedding=[0.05] * 1024) for c in chunks
+        ]
+
+        with patch("src.ingestion.pipeline.TikaClient") as mock_client_cls:
+            mock_client = MagicMock()
+            mock_client.extract_file.return_value = mock_extraction
+            mock_client_cls.return_value = mock_client
+
+            extraction, cleaned, chunked, embedded = extract_clean_chunk_and_embed(
+                file_path=test_file,
+                embedder=mock_embedder,
+            )
+
+            assert extraction.file_name == "embed_doc.txt"
+            assert cleaned.char_count > 0
+            assert chunked.total_chunks == 1
+            assert embedded.total_chunks == 1
+            assert embedded.dimension == 1024
+            assert len(embedded.chunks[0].dense_embedding) == 1024
+            assert (
+                embedded.chunks[0].chunk.content == "Đoạn một cho pipeline embedding."
+            )
+
+    def test_preview_cli_embed_flag_success(self, tmp_path, monkeypatch, capsys):
+        test_file = tmp_path / "preview_embed.txt"
+        test_file.write_text("Tài liệu thử nghiệm embedding CLI.", encoding="utf-8")
+
+        mock_extraction = ExtractionResult(
+            raw_text="Tài liệu thử nghiệm embedding CLI.\n",
+            file_name="preview_embed.txt",
+            mime_type="text/plain",
+            metadata={},
+            page_count=None,
+            has_form_feeds=False,
+        )
+
+        with (
+            patch("src.ingestion.pipeline.TikaClient") as mock_client_cls,
+            patch("src.embedding.embedder.BgeM3Embedder") as mock_embedder_cls,
+        ):
+            mock_client = MagicMock()
+            mock_client.extract_file.return_value = mock_extraction
+            mock_client_cls.return_value = mock_client
+
+            mock_embedder = MagicMock()
+            mock_embedder.model_name = "BAAI/bge-m3"
+            mock_embedder.revision = "5617a9f61b028005a4858fdac845db406aefb181"
+            mock_embedder.dimension = 1024
+            mock_embedder.embed_chunks.side_effect = lambda chunks, batch_size=8: [
+                EmbeddedChunk(chunk=c, dense_embedding=[0.05] * 1024) for c in chunks
+            ]
+            mock_embedder_cls.return_value = mock_embedder
+
+            monkeypatch.setattr(
+                "sys.argv",
+                [
+                    "preview",
+                    "--file",
+                    str(test_file),
+                    "--embed",
+                    "--whitespace-tokenizer",
+                ],
+            )
+
+            exit_code = main()
+            assert exit_code == 0
+
+            captured = capsys.readouterr()
+            assert "DENSE EMBEDDING PREVIEW" in captured.out
+            assert "Total Vectors:     1" in captured.out
+            assert "Vector Dimension:  1024" in captured.out
+
+    def test_preview_cli_rejects_invalid_batch_size_early(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        test_file = tmp_path / "sample.txt"
+        test_file.write_text("Hello", encoding="utf-8")
+
+        monkeypatch.setattr(
+            "sys.argv",
+            [
+                "preview",
+                "--file",
+                str(test_file),
+                "--embed",
+                "--batch-size",
+                "0",
+            ],
+        )
+
+        with patch("src.ingestion.pipeline.TikaClient") as mock_client_cls:
+            exit_code = main()
+            assert exit_code == 1
+            mock_client_cls.assert_not_called()
+
+            captured = capsys.readouterr()
+            assert "[ERROR] batch-size must be >= 1" in captured.err
