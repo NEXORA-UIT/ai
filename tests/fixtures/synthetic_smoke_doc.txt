@@ -1,0 +1,13 @@
+DỰ ÁN NEXORA - HỆ THỐNG QUẢN LÝ CÔNG VIỆC THÔNG MINH
+
+1. Giới thiệu dự án
+Nexora là giải pháp toàn diện hỗ trợ quản lý dự án, theo dõi tiến độ và tối ưu hóa quy trình làm việc nhóm. Nền tảng tích hợp trợ lý AI để tra cứu tài liệu nghiệp vụ và giải đáp thắc mắc của thành viên.
+
+2. Quản lý tác vụ và bảng Kanban
+Mỗi công việc được biểu diễn dưới dạng thẻ bài (Task Card) trên các bảng Kanban trực quan. Thành viên có thể cập nhật trạng thái, thêm nhãn, đính kèm tài liệu và phân công người phụ trách theo thời gian thực.
+
+3. Module Tri thức và RAG
+Hệ thống Knowledge Base cho phép tải lên các tài liệu kỹ thuật, hướng dẫn quy trình và báo cáo dự án. Pipeline Ingestion tự động trích xuất nội dung văn bản, làm sạch, phân chia thành các đoạn ngữ nghĩa (chunks) và nhúng vector bằng mô hình BGE-M3.
+
+4. Architecture and Performance Overview
+The backend service processes document uploads, validates structure, and orchestrates asynchronous embedding pipelines. Distributed vector indices ensure sub-second retrieval latencies across complex multi-tenant enterprise environments.

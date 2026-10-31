@@ -5,20 +5,39 @@ description = "Nexora AI service foundation"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "pgvector>=0.3.0",
     "psycopg[binary]>=3.2,<4",
+    "sentence-transformers>=3.4,<7",
+    "tokenizers>=0.19,<1",
+    "torch>=2.2,<3",
     "uvicorn>=0.34,<1",
 ]
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28,<1",
     "pytest>=8,<10",
     "ruff>=0.9,<1",
 ]
 
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "integration: marks tests as requiring external services (e.g. running Apache Tika server)",
+    "real_model: marks tests that require downloading and running real BGE-M3 model weights",
+    "database: marks tests as requiring a live PostgreSQL test database with pgvector",
+]
 
 [tool.ruff]
 line-length = 88
