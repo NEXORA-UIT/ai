@@ -31,6 +31,23 @@ class PageSpan:
 
 
 @dataclass(frozen=True)
+class FileValidationResult:
+    """Attributes of a validated input file.
+
+    Attributes:
+        file_name: Base name of the file.
+        file_size_bytes: Size of the file in bytes.
+        sha256: SHA-256 hexadecimal checksum.
+        mime_type: Validated MIME type.
+    """
+
+    file_name: str
+    file_size_bytes: int
+    sha256: str
+    mime_type: str
+
+
+@dataclass(frozen=True)
 class ExtractionResult:
     """Raw output from document extractor (e.g. Apache Tika).
 
@@ -103,8 +120,8 @@ class Chunk:
     chunk_index: int
     content: str
     token_count: int
-    start_offset: int
-    end_offset: int
+    start_offset: int | None = None
+    end_offset: int | None = None
     page_number: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     char_count: int = field(init=False)
@@ -112,9 +129,13 @@ class Chunk:
     def __post_init__(self) -> None:
         if self.chunk_index < 0:
             raise ValueError(f"chunk_index must be >= 0, got {self.chunk_index}")
-        if self.start_offset < 0:
+        if self.start_offset is not None and self.start_offset < 0:
             raise ValueError(f"start_offset must be >= 0, got {self.start_offset}")
-        if self.end_offset < self.start_offset:
+        if (
+            self.start_offset is not None
+            and self.end_offset is not None
+            and self.end_offset < self.start_offset
+        ):
             raise ValueError(
                 f"end_offset ({self.end_offset}) cannot be less than "
                 f"start_offset ({self.start_offset})"

@@ -3,13 +3,19 @@
 from src.ingestion.chunker import chunk_document
 from src.ingestion.cleaner import clean_document, clean_text, clean_text_fragment
 from src.ingestion.exceptions import (
+    BoardMismatchError,
     ChunkingError,
     CleaningError,
+    DatabaseConnectionError,
+    DocumentProcessingConflictError,
     EmptyDocumentError,
     FileEmptyError,
     FileTooLargeError,
     FileValidationError,
     IngestionError,
+    ProcessingOwnershipLostError,
+    StorageError,
+    StorageValidationError,
     TikaConnectionError,
     TikaError,
     TikaExtractionError,
@@ -22,6 +28,7 @@ from src.ingestion.pipeline import (
     extract_and_clean,
     extract_clean_and_chunk,
     extract_clean_chunk_and_embed,
+    ingest_file_to_storage,
 )
 from src.ingestion.schemas import (
     Chunk,
@@ -30,16 +37,29 @@ from src.ingestion.schemas import (
     EmbeddedChunk,
     EmbeddedDocument,
     ExtractionResult,
+    FileValidationResult,
     PageSpan,
+)
+from src.ingestion.storage import (
+    DocumentRecord,
+    DocumentStorage,
+    StoredChunk,
+    StoredDocument,
+    sanitize_error_message,
 )
 from src.ingestion.tika_client import TikaClient
 
 __all__ = [
+    "BoardMismatchError",
     "Chunk",
     "ChunkedDocument",
     "ChunkingError",
     "CleanedDocument",
     "CleaningError",
+    "DatabaseConnectionError",
+    "DocumentProcessingConflictError",
+    "DocumentRecord",
+    "DocumentStorage",
     "EmbeddedChunk",
     "EmbeddedDocument",
     "EmptyDocumentError",
@@ -47,8 +67,14 @@ __all__ = [
     "FileEmptyError",
     "FileTooLargeError",
     "FileValidationError",
+    "FileValidationResult",
     "IngestionError",
     "PageSpan",
+    "ProcessingOwnershipLostError",
+    "StorageError",
+    "StorageValidationError",
+    "StoredChunk",
+    "StoredDocument",
     "TikaClient",
     "TikaConnectionError",
     "TikaError",
@@ -63,5 +89,7 @@ __all__ = [
     "extract_and_clean",
     "extract_clean_and_chunk",
     "extract_clean_chunk_and_embed",
+    "ingest_file_to_storage",
+    "sanitize_error_message",
     "validate_file",
 ]
