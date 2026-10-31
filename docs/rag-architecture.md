@@ -1,48 +1,48 @@
-# Kiến trúc RAG Nexora
+# Nexora RAG Architecture
 
-Tài liệu này chốt **trách nhiệm và công nghệ**, chưa chốt hợp đồng triển khai. Phase 0 hiện chỉ có FastAPI `/health`, kết nối PostgreSQL và kiểm tra pgvector chỉ đọc. Các luồng RAG dưới đây chưa được triển khai.
+This document records the agreed **responsibilities and technologies**; implementation contracts are still open. The service has a FastAPI `/health` endpoint and a read-only PostgreSQL/pgvector connectivity check. Standalone ingestion and Board-scoped dense-retrieval cores are implemented; the end-to-end flows below are not yet wired to a worker or service API.
 
-## Thành phần và trách nhiệm
+## Components and responsibilities
 
-| Thành phần | Trách nhiệm đã chốt |
+| Component | Agreed responsibility |
 | --- | --- |
-| FE | Gọi public API của Express; không gọi trực tiếp AI service. |
-| Express | Xác thực, phân quyền theo Board, quản lý public API, upload file lên R2, metadata tài liệu và Prisma migration. Gửi việc ingestion qua BullMQ và kết nối với FastAPI khi có truy vấn RAG. |
-| Python Worker | Consumer độc lập của công việc RAG trong BullMQ; đọc tài liệu, xử lý ingestion và ghi dữ liệu vector. Không cần Node.js RAG Worker trung gian. |
-| FastAPI | Retrieval trong phạm vi Board và sinh câu trả lời dựa trên tài liệu, kèm nguồn tham chiếu. |
-| Hạ tầng chung | PostgreSQL + pgvector lưu vector; Redis + BullMQ chuyển công việc nền. |
+| Frontend | Calls the public Express API; does not call the AI service directly. |
+| Express | Authenticates users, authorizes access by Board, owns the public API, uploads files to R2, manages document metadata and Prisma migrations, enqueues ingestion through BullMQ, and connects to FastAPI for RAG queries. |
+| Python Worker | Independent BullMQ consumer for RAG jobs; reads documents, runs ingestion, and writes vector data. No intermediate Node.js RAG worker is needed. |
+| FastAPI | Retrieves information within a Board's scope and generates answers from documents with source references. |
+| Shared infrastructure | PostgreSQL + pgvector stores vectors; Redis + BullMQ carries background work. |
 
-Node.js workers hiện có của BE tiếp tục xử lý các tác vụ khác, không thuộc ingestion RAG.
+The backend's existing Node.js workers continue to handle other jobs; they are not part of RAG ingestion.
 
-## Luồng ingestion
+## Ingestion flow
 
-FE gửi tài liệu đến Express. Express kiểm tra quyền, quản lý file và metadata, rồi giao công việc nền qua BullMQ. Python Worker đọc tài liệu, tạo chunks và embeddings bằng **BAAI/bge-m3**, sau đó ghi dữ liệu qua psycopg 3 vào PostgreSQL + pgvector. Ingestion phải xử lý lỗi và retry an toàn; khi xử lý lại tài liệu, kết quả cũ không được ghi đè dữ liệu mới. Queue message không chứa secret hoặc nội dung tài liệu lớn.
+The frontend sends a document to Express. Express checks authorization, manages the file and metadata, then queues background work through BullMQ. The Python Worker reads the document, creates chunks and embeddings using **BAAI/bge-m3**, then writes data to PostgreSQL + pgvector using psycopg 3. Ingestion must handle failures and retries safely. When a document is reprocessed, an older result must not overwrite the new one. Queue messages must not contain secrets or large document contents.
 
-## Luồng retrieval và trả lời
+## Retrieval and answer flow
 
-FE gửi câu hỏi qua Express. Express chịu trách nhiệm xác thực và phân quyền nghiệp vụ theo Board trước khi kết nối FastAPI. FastAPI chỉ truy xuất dữ liệu đúng phạm vi Board, dùng tài liệu tìm được để sinh câu trả lời có nguồn tham chiếu. Worker và FastAPI phải dùng cùng cấu hình BGE-M3 để embedding tài liệu và truy vấn tương thích.
+The frontend sends a question through Express. Express handles authentication and Board-level authorization before connecting to FastAPI. FastAPI retrieves only data in the authorized Board scope and generates an answer with references to the source documents. The Worker and FastAPI must use the same BGE-M3 configuration so document and query embeddings are compatible.
 
-## Tech stack đã chốt
+## Agreed technology stack
 
-| Phần | Công nghệ |
+| Area | Technology |
 | --- | --- |
 | Runtime/API | Python 3.12, FastAPI, Uvicorn |
-| Ingestion nền | Python BullMQ Worker, Redis + BullMQ |
-| RAG | LangChain |
-| Embedding | BAAI/bge-m3, dense vector **1024 chiều** |
-| Vector DB | PostgreSQL + pgvector; Python dùng psycopg 3, không thêm ORM |
-| Generation | LLM API; câu trả lời có nguồn tham chiếu |
-| Tracing/đánh giá | Langfuse |
+| Background ingestion | Python BullMQ Worker, Redis + BullMQ |
+| RAG framework | LangChain |
+| Embeddings | BAAI/bge-m3, dense vectors with **1024 dimensions** |
+| Vector database | PostgreSQL + pgvector; Python uses psycopg 3, with no added ORM |
+| Generation | LLM API; answers include source references |
+| Tracing/evaluation | Langfuse |
 
-Các thành phần Worker, LangChain, embedding, generation và Langfuse là hướng triển khai cho các phase sau; chưa có runtime trong Phase 0.
+The Worker, LangChain, embeddings, generation, and Langfuse are planned for later phases and do not have runtime implementations in Phase 0.
 
-## Quyết định để dành cho phase triển khai
+## Decisions for implementation phases
 
-- Ingestion: tên queue/job, payload, retry/backoff và cách phối hợp ghi dữ liệu với enqueue.
-- Giao tiếp Express ↔ FastAPI: route, DTO, xác thực nội bộ, định dạng phản hồi và có dùng streaming/SSE hay không.
-- Nguồn tham chiếu: cấu trúc citation và cách biểu diễn vị trí trong tài liệu.
-- Dữ liệu: trạng thái xử lý, cơ chế chống kết quả cũ, schema chunks/vector, index và migration cụ thể.
-- Embedding: cách chạy BGE-M3, batching, caching và cấu hình vận hành; model và 1024 chiều đã chốt.
-- Generation và đánh giá: LLM cụ thể, dataset, metrics và ngưỡng chất lượng.
+- Ingestion: queue/job names, payload, retry/backoff policy, and coordination between writes and enqueueing.
+- Express ↔ FastAPI communication: route, DTO, internal authentication, response format, and whether to use streaming/SSE.
+- Source references: citation structure and how document positions are represented.
+- Data: processing states, prevention of stale results, chunk/vector schema, index, and concrete migrations.
+- Embeddings: BGE-M3 runtime, batching, caching, and operational configuration. The model and 1024-dimensional output are already agreed.
+- Generation and evaluation: specific LLM, dataset, metrics, and quality thresholds.
 
-Chốt các chi tiết này khi bắt đầu ingestion và retrieval/generation, cùng với thay đổi code ở cả hai repo nếu cần.
+Agree on these details when ingestion and retrieval/generation begin, including any required changes in both repositories.

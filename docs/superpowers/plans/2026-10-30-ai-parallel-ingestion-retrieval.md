@@ -1,104 +1,104 @@
-# Kế hoạch làm RAG độc lập trong repo AI — Bảo và Đạt
+# Parallel RAG Work in the AI Repository — Đạt and Bảo
 
-**Trạng thái:** Kế hoạch để hai người chốt trước khi code; chưa phải hợp đồng BE ↔ AI.
+**Status:** Alignment plan for the two developers before implementation; not a BE ↔ AI contract.
 
-**Phạm vi:** Chỉ repo `ai`, hai nhánh độc lập từ cùng một commit `staging`. Bảo tự review và merge sau khi hai nhánh chạy riêng thành công.
+**Scope:** Only the `ai` repository. Two independent branches start from the same `staging` commit. Bảo reviews and merges after both branches pass their independent checks.
 
-**Mục tiêu đầu tiên:** File TXT đi qua ingestion vào PostgreSQL + pgvector; retrieval tìm lại đúng đoạn trong đúng Board. Chưa sinh câu trả lời bằng LLM.
+**First goal:** Ingest a TXT file into PostgreSQL + pgvector, then retrieve the correct passage from the correct Board. No LLM answer generation in this phase.
 
-## 1. Ranh giới đã thống nhất
+## 1. Agreed boundaries
 
-| Phần | Trách nhiệm |
+| Owner | Responsibility |
 | --- | --- |
-| Đạt | Đọc TXT, chunking, embedding tài liệu, ghi chunks/vector và metadata nguồn. |
-| Bảo | Embedding câu hỏi để thử nghiệm, semantic retrieval, lọc Board/trạng thái và trả chunks kèm nguồn. |
-| BE (phase sau) | Prisma schema/migration nghiệp vụ, quyền Board, upload R2, producer BullMQ và public API. |
+| Đạt | Read TXT files, chunk text, embed documents, and write chunks, vectors, and source metadata. |
+| Bảo | Embed test queries, implement semantic retrieval, filter by Board and document status, and return chunks with source information. |
+| Backend (later phase) | Own Prisma schema/migrations, Board authorization, R2 uploads, BullMQ producer, and the public API. |
 
-Hai người làm **AI-only** trên database test. Không sửa BE, không tạo migration nghiệp vụ ở Python và không xem schema test là schema production đã được BE duyệt.
+Both developers work **AI-only** against a test database. Do not change the backend, create business migrations in Python, or treat the test schema as a production schema approved by the backend team.
 
-## 2. Những thứ phải chốt cùng nhau trước khi tách nhánh
+## 2. Decisions to align on before dependent work
 
-Chỉ cần một buổi chốt ngắn và ghi kết quả vào phần **Decision log** cuối file. Nếu một dòng chưa chốt, hai người vẫn có thể làm code không phụ thuộc dòng đó, nhưng không đánh dấu lát dọc chung là hoàn thành.
+A short working session should be enough to record the choices in the **Decision log** at the end of this document. If an item is still open, each developer may work on independent code, but the shared vertical slice must not be marked complete.
 
-| Quyết định | Mức tối thiểu cần thống nhất | Vì sao |
+| Decision | Minimum agreement | Why it matters |
 | --- | --- | --- |
-| Embedding | `BAAI/bge-m3`, dense 1024 chiều đã chốt; thêm đúng revision model, chuẩn hóa vector và phép đo khoảng cách. | Hai bên có thể tạo vector cùng chiều nhưng xếp hạng sai nếu cấu hình khác. |
-| Dữ liệu test | Document thuộc Board nào, trạng thái nào được tìm, chunk liên kết Document ra sao, vector/text nằm ở đâu. | Đạt ghi và Bảo đọc cùng một fixture. BE sẽ quyết định schema production sau. |
-| Nguồn tham chiếu | Mỗi chunk có định danh tài liệu/chunk, text và vị trí nguồn; số trang có thể vắng với TXT. | Retrieval phải trả nguồn thực, không dựng citation từ lời LLM. |
-| Hiển thị và xử lý lại | Chỉ Document `READY` mới được tìm; dữ liệu cũ sau xóa/xử lý lại không được xuất hiện. Cơ chế cột/revision cụ thể chờ BE chốt. | Tránh trả kết quả cũ hoặc chéo Board. |
-| Test chung | Một TXT nhỏ có câu trả lời rõ ràng; dữ liệu của Board A/B và tài liệu chưa sẵn sàng. | Hai nhánh chạy độc lập nhưng đo cùng một hành vi. |
+| Embeddings | `BAAI/bge-m3` and dense 1024-dimensional vectors are agreed; pin the exact model revision, normalization, and distance metric. | Vectors can have the same dimensions and still rank results differently if their configuration differs. |
+| Test data | Board ownership, searchable document states, the Document-to-Chunk relationship, and where text/vectors live. | Both branches must write and read the same fixture. The backend will decide the production schema later. |
+| Source references | Each chunk has document/chunk identifiers, text, and source position; page numbers may be absent for TXT. | Retrieval must return verifiable sources rather than citations invented by an LLM. |
+| Visibility and reprocessing | Only `READY` documents are searchable; deleted or superseded document versions must not appear. The backend will decide the concrete revision/column mechanism. | Prevent stale results and cross-Board leakage. |
+| Shared test | One small TXT file with an unambiguous expected answer, plus data for Boards A/B and a document that is not ready. | The branches can run independently while measuring the same behavior. |
 
-**Đề xuất cần hai người xác nhận:** dùng dense vector đã chuẩn hóa và cosine distance cho lát dọc đầu tiên; pin cùng một revision của BGE-M3. Đây là đề xuất cho test AI, chưa tự động chốt index hay cách deploy model.
+**Proposal requiring agreement:** Use normalized dense vectors and cosine distance for the first vertical slice; pin the same BGE-M3 revision. This is a proposal for the AI test slice and does not decide the production index or model deployment.
 
-## 3. Chuẩn bị môi trường
+## 3. Environment setup
 
-- [ ] Mỗi người có checkout/worktree riêng của repo `ai`, cùng xuất phát từ **một SHA của `origin/staging`**; ghi SHA đó vào Decision log. Không commit trực tiếp lên `staging`.
-- [ ] Python 3.12 và `uv sync --locked` chạy được; baseline `uv run pytest -q` và Ruff đều xanh.
-- [ ] PostgreSQL test có extension `vector`; dùng DB/schema test riêng, không dùng DB nghiệp vụ. `scripts.check_db` xác nhận kết nối.
-- [ ] Máy tải/chạy được cùng revision BGE-M3. Test nhanh dùng vector cố định; chỉ smoke test mới nạp model thật để tránh test suite chậm.
-- [ ] Có một file TXT mẫu và câu hỏi kỳ vọng; nội dung kiểm thử không chứa dữ liệu thật hoặc secret.
+- [ ] Each developer has a separate checkout/worktree of the `ai` repository at the **same SHA from `origin/staging`**; record that SHA in the Decision log. Do not commit directly to `staging`.
+- [ ] Python 3.12 and `uv sync --locked` work; baseline `uv run pytest -q` and Ruff checks pass.
+- [ ] The test PostgreSQL database has the `vector` extension. Use a dedicated test database/schema, never the business database. `scripts.check_db` confirms connectivity.
+- [ ] Both machines can download and run the same BGE-M3 revision. Fast tests use fixed vectors; only a smoke test loads the real model to keep the test suite quick.
+- [ ] A sample TXT file and expected question are available; test content contains no real user data or secrets.
 
-## 4. Nhánh Đạt — ingestion core
+## 4. Đạt's branch — ingestion core
 
-**Nhánh gợi ý:** `feat/ai-ingestion-core`.
+**Suggested branch:** `feat/ai-ingestion-core`.
 
-**Vùng code chính:** `src/ingestion/`, `src/chunking/`, `src/embedding/`, `tests/ingestion/`. Đạt là người sở hữu module embedding dùng chung sau khi merge.
+**Main code areas:** `src/ingestion/`, `src/chunking/`, `src/embedding/`, `tests/ingestion/`. Đạt owns the shared embedding module after merge.
 
-### Thứ tự làm
+### Implementation order
 
-1. Viết test đỏ: đọc TXT mẫu thành các đoạn text có metadata nguồn; đầu vào rỗng/không đọc được phải báo lỗi rõ.
-2. Triển khai đọc TXT và chunking tối thiểu. Chưa thêm PDF, DOCX, Tika hoặc R2.
-3. Viết test đỏ cho embedding: đầu ra dense 1024 chiều, cùng cấu hình đã chốt; dùng fake trong test nhanh và một smoke test với BGE-M3 thật.
-4. Viết test đỏ cho ghi PostgreSQL test: số chunks, text, vector và metadata nguồn khớp đầu vào. Chỉ đánh dấu dữ liệu là sẵn sàng sau khi ghi đủ; lỗi giữa chừng không để bản ghi chưa hoàn tất trở thành nguồn tìm kiếm.
-5. Chạy test riêng và toàn repo, Ruff; ghi lệnh chạy và kết quả vào PR.
+1. Write a failing test: read the sample TXT into text chunks with source metadata; empty or unreadable input returns a clear error.
+2. Implement TXT reading and minimal chunking. Do not add PDF, DOCX, Tika, or R2 support.
+3. Write a failing embedding test: output is a dense 1024-dimensional vector using the agreed configuration. Use a fake in fast tests and one smoke test with real BGE-M3.
+4. Write a failing PostgreSQL test: chunk count, text, vectors, and source metadata match the input. Mark data ready only after all writes succeed; a partial failure must not make an incomplete document searchable.
+5. Run focused and full-repository tests plus Ruff; record commands and results in the PR.
 
-**Nghiệm thu độc lập:** một TXT nhỏ được chunk/embed/ghi vào pgvector, có thể đọc lại đúng số chunk và metadata; lỗi có kiểm soát. Chưa cần BullMQ Worker runtime hay job từ Express.
+**Independent acceptance:** A small TXT file is chunked, embedded, and written to pgvector. Read-back returns the correct number of chunks and source metadata, with controlled error behavior. No BullMQ Worker runtime or Express job is needed yet.
 
-## 5. Nhánh Bảo — retrieval core
+## 5. Bảo's branch — retrieval core
 
-**Nhánh gợi ý:** `feat/ai-retrieval-core`.
+**Suggested branch:** `feat/ai-retrieval-core`.
 
-**Vùng code chính:** `src/retrieval/`, `tests/retrieval/`. Không sửa `src/embedding/` của Đạt trong nhánh này.
+**Main code areas:** `src/retrieval/`, `tests/retrieval/`. Do not edit Đạt's `src/embedding/` module on this branch.
 
-### Thứ tự làm
+### Implementation order
 
-1. Seed schema **chỉ dùng cho test** với cùng dữ liệu đã chốt: ít nhất hai Board, Document `READY`/`PROCESSING`/`FAILED` và các chunks có vector 1024 chiều.
-2. Viết test đỏ cho semantic search bằng psycopg + pgvector: Board và trạng thái tài liệu phải được lọc trong SQL; kết quả mang theo định danh chunk/tài liệu, text và vị trí nguồn.
-3. Triển khai retrieval đơn giản, chưa reranking/hybrid search. Test thứ tự kết quả, giới hạn số kết quả, Board khác không lọt vào, tài liệu chưa sẵn sàng không lọt vào và trường hợp không có bằng chứng.
-4. Test nhanh truyền query vector cố định. Một smoke test riêng có thể tạo query vector bằng cùng BGE-M3/revision đã chốt; sau khi merge, nối với module embedding do Đạt sở hữu, không giữ hai adapter production.
-5. Chạy test riêng và toàn repo, Ruff; ghi lệnh chạy và kết quả vào PR.
+1. Seed a **test-only** schema with the agreed data: at least two Boards, `READY`/`PROCESSING`/`FAILED` documents, and 1024-dimensional chunk vectors.
+2. Write a failing psycopg + pgvector semantic-search test: SQL must filter Board and document status; results include chunk/document identifiers, text, and source position.
+3. Implement simple retrieval without reranking or hybrid search. Test result ordering, result limits, exclusion of other Boards and non-ready documents, and the no-evidence case.
+4. Fast tests pass a fixed query vector. A separate smoke test may create a query vector with the agreed BGE-M3 revision; after merge, use Đạt's shared embedding module and remove the temporary duplicate production adapter.
+5. Run focused and full-repository tests plus Ruff; record commands and results in the PR.
 
-**Nghiệm thu độc lập:** retrieval tìm đúng chunks từ fixture trong đúng Board, chỉ từ tài liệu hợp lệ, và trả nguồn đối chiếu được. Chưa cần FastAPI route, LLM hoặc SSE.
+**Independent acceptance:** Retrieval finds the expected fixture chunks in the correct Board, includes only eligible documents, and returns verifiable source information. No FastAPI query route, LLM, or SSE is needed yet.
 
-## 6. Quy tắc tránh đụng code khi làm song song
+## 6. Avoiding conflicts during parallel work
 
-- Mỗi người chỉ sửa vùng code của mình. `src/main.py`, `src/database.py`, README và kiến trúc chung chỉ đổi sau khi báo người còn lại.
-- Nếu cả hai cần thêm dependency, có thể mỗi nhánh cập nhật `pyproject.toml`/`uv.lock` để tự chạy. Khi merge, giải quyết xung đột rồi chạy lại `uv lock` và `uv sync --locked`; không chọn thủ công một lockfile cũ.
-- Test DB/fixture có thể lặp lại ở hai nhánh để chúng chạy độc lập. Sau merge, gom về một bộ fixture; không giữ hai schema test khác nghĩa.
-- Không đưa schema test, tên job hoặc route tạm thành hợp đồng production chỉ vì test đã xanh.
+- Each developer changes only their owned code areas. Coordinate before changing shared files such as `src/main.py`, `src/database.py`, README, or shared architecture.
+- If both branches need dependencies, each may update `pyproject.toml`/`uv.lock` to run independently. During merge, resolve conflicts and rerun `uv lock` and `uv sync --locked`; do not manually select a stale lockfile.
+- Test database fixtures may be duplicated initially so branches run independently. After merging, consolidate to one fixture; do not keep two test schemas with different meanings.
+- Do not turn a test schema, temporary job name, or temporary route into a production contract just because the tests pass.
 
-## 7. Cổng merge do Bảo thực hiện
+## 7. Merge gate owned by Bảo
 
-1. Cả hai nhánh tự chạy xanh: `uv run pytest -q`, `uv run ruff check .`, `uv run ruff format --check .`; mỗi người có ít nhất một lần kiểm tra với PostgreSQL thật.
-2. Review hai PR vào `ai/staging`. Đối chiếu lại Decision log, đặc biệt model revision, vector normalization/distance, Board filter và metadata nguồn.
-3. Merge ingestion trước để lấy module embedding dùng chung; cập nhật/rebase retrieval rồi bỏ phần nạp model tạm ở nhánh retrieval nếu có.
-4. Chạy **AI-only E2E** trên DB test sạch: TXT → ingestion → chunks/vector → câu hỏi → retrieval → đúng đoạn và nguồn. Thử thêm Board khác và tài liệu chưa sẵn sàng để chắc rằng không rò dữ liệu.
-5. Chỉ sau cổng này mới bàn BE Prisma migration, BullMQ job, FastAPI ↔ Express API, generation/LLM và giao thức phản hồi. Việc AI-only E2E xanh **chưa chứng minh** tương thích với schema BE thật. Khi BE migration có sẵn, phải chạy lại test trên schema đó và bổ sung ca xóa/xử lý lại để chắc rằng chunks cũ không lọt vào truy vấn.
+1. Both branches pass `uv run pytest -q`, `uv run ruff check .`, and `uv run ruff format --check .`; each developer has tested against a real PostgreSQL instance at least once.
+2. Review both PRs into `ai/staging`. Recheck the Decision log, especially model revision, vector normalization/distance, Board filtering, and source metadata.
+3. Merge ingestion first so retrieval can use its shared embedding module; update/rebase retrieval and remove its temporary model-loading code if applicable.
+4. Run **AI-only E2E** against a clean test database: TXT → ingestion → chunks/vectors → question → retrieval → expected passage and source. Also test another Board and a document that is not ready to confirm they are excluded.
+5. Only after this gate, discuss backend Prisma migrations, BullMQ jobs, FastAPI ↔ Express API, generation/LLM, and response protocols. Passing AI-only E2E **does not prove** compatibility with the real backend schema. Once the backend migration exists, rerun tests against that schema and add deletion/reprocessing cases to confirm old chunks cannot leak into results.
 
-## 8. Ngoài phạm vi hai nhánh này
+## 8. Out of scope for these branches
 
-BullMQ consumer, upload/R2, Tika/PDF/DOCX, FastAPI query route, xác thực nội bộ, LLM answer, SSE, Langfuse, reranking, Agent và migration Prisma. Chúng là các bước sau, không được thêm chỉ để làm demo đầu tiên trông đầy đủ hơn.
+BullMQ consumer runtime, uploads/R2, Tika/PDF/DOCX, FastAPI query route, internal authentication, LLM answers, SSE, Langfuse, reranking, Agents, and Prisma migrations. These belong to later phases and must not be added just to make the first demo look complete.
 
-## 9. Decision log — điền trước khi code phần phụ thuộc
+## 9. Decision log — fill in before dependent implementation
 
-| Mục | Kết quả hai người chốt |
+| Item | Result agreed by both developers |
 | --- | --- |
-| SHA chung của `ai/staging` | _Chưa điền_ |
-| BGE-M3 model revision | _Chưa điền_ |
-| Dense normalization và distance metric | _Chưa điền_ |
-| Dữ liệu test Document/Chunk và trạng thái được tìm | _Chưa điền_ |
-| Metadata nguồn tối thiểu cho TXT; quy ước PDF/DOCX để sau | _Chưa điền_ |
-| TXT mẫu, câu hỏi và kết quả kỳ vọng | _Chưa điền_ |
-| Tên hai nhánh/PR | _Chưa điền_ |
+| Shared SHA of `ai/staging` | _Not recorded_ |
+| BGE-M3 model revision | _Not recorded_ |
+| Dense-vector normalization and distance metric | _Not recorded_ |
+| Test Document/Chunk data and searchable states | _Not recorded_ |
+| Minimum TXT source metadata; PDF/DOCX rules deferred | _Not recorded_ |
+| Sample TXT, question, and expected result | _Not recorded_ |
+| Branch/PR names | _Not recorded_ |
 
-**Đối chiếu SRS:** UC-KB-22 và các mục 4.5.5, 6.8.2–6.8.3 yêu cầu truy vấn đúng phạm vi Board, chỉ dùng nguồn hợp lệ, dẫn nguồn thực và không khẳng định khi thiếu bằng chứng. Mốc hiệu năng AI ở mục 6.1.4 sẽ được đo khi có luồng generation; không áp làm tiêu chí riêng cho hai module đầu tiên.
+**SRS traceability:** UC-KB-22 and sections 4.5.5, 6.8.2–6.8.3 require Board-scoped retrieval, eligible sources only, real citations, and no unsupported claims when evidence is missing. AI performance targets in section 6.1.4 will be measured once answer generation exists; they are not standalone acceptance criteria for these first two modules.
