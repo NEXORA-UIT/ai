@@ -93,12 +93,13 @@ BullMQ consumer runtime, uploads/R2, Tika/PDF/DOCX, FastAPI query route, interna
 
 | Item | Result agreed by both developers |
 | --- | --- |
-| Shared SHA of `ai/staging` | _Not recorded_ |
-| BGE-M3 model revision | _Not recorded_ |
-| Dense-vector normalization and distance metric | _Not recorded_ |
-| Test Document/Chunk data and searchable states | _Not recorded_ |
-| Minimum TXT source metadata; PDF/DOCX rules deferred | _Not recorded_ |
-| Sample TXT, question, and expected result | _Not recorded_ |
-| Branch/PR names | _Not recorded_ |
+| Shared SHA of `ai/staging` | `14cbe1e3ae399fc703de55837996589374ec61e3` — merge base for the current retrieval branch. |
+| BGE-M3 model revision | `BAAI/bge-m3`, pinned revision `5617a9f61b028005a4858fdac845db406aefb181`, shared by ingestion and query embedding. |
+| Dense-vector normalization and distance metric | Dense vectors are L2-normalized (`normalize_embeddings=True`), 1024 dimensions; retrieval uses pgvector cosine distance (`<=>`) in ascending order. |
+| Test Document/Chunk data and searchable states | Test-only `documents` and `document_chunks` tables from `scripts/bootstrap_dev_db.sql`; Board UUID scopes documents; only `READY` is searchable, while `PROCESSING` and `FAILED` are excluded. Chunks hold content, offsets, metadata, and `vector(1024)`. |
+| Visibility and reprocessing | The ingestion storage pipeline uses processing-token ownership and atomically replaces chunks before marking a document `READY`; the test schema has no production deletion/supersession contract, which remains for Backend to decide. |
+| Minimum TXT source metadata; PDF/DOCX rules deferred | Results carry document/chunk IDs, chunk index, file name, storage key, content, optional page number, character offsets, and cosine distance. |
+| Sample TXT, question, and expected result | `tests/retrieval/test_ingestion_retrieval_e2e.py` creates synthetic `nexora_release.txt`; “When is the release date?” must return “The release date is 2026-12-01.” and its source. Board B and non-READY exact-vector decoys must not appear. |
+| Branch/PR names | Ingestion: `feat/rag-ingestion-local`, merged by PR #1 into `staging`; retrieval: `feat/rag-retrival-local`. |
 
 **SRS traceability:** UC-KB-22 and sections 4.5.5, 6.8.2–6.8.3 require Board-scoped retrieval, eligible sources only, real citations, and no unsupported claims when evidence is missing. AI performance targets in section 6.1.4 will be measured once answer generation exists; they are not standalone acceptance criteria for these first two modules.
