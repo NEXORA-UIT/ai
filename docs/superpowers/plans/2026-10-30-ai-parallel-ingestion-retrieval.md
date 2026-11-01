@@ -82,7 +82,7 @@ A short working session should be enough to record the choices in the **Decision
 1. Both branches pass `uv run pytest -q`, `uv run ruff check .`, and `uv run ruff format --check .`; each developer has tested against a real PostgreSQL instance at least once.
 2. Review both PRs into `ai/staging`. Recheck the Decision log, especially model revision, vector normalization/distance, Board filtering, and source metadata.
 3. Merge ingestion first so retrieval can use its shared embedding module; update/rebase retrieval and remove its temporary model-loading code if applicable.
-4. Run **AI-only E2E** against a clean test database: TXT → ingestion → chunks/vectors → question → retrieval → expected passage and source. Also test another Board and a document that is not ready to confirm they are excluded.
+4. [x] Run **AI-only E2E** against the isolated test database: TXT → ingestion → chunks/vectors → question → retrieval → expected passage and source. Also test another Board and non-READY documents to confirm they are excluded. Verified by `tests/retrieval/test_ingestion_retrieval_e2e.py` against PostgreSQL/pgvector with deterministic extraction and embeddings.
 5. Only after this gate, discuss backend Prisma migrations, BullMQ jobs, FastAPI ↔ Express API, generation/LLM, and response protocols. Passing AI-only E2E **does not prove** compatibility with the real backend schema. Once the backend migration exists, rerun tests against that schema and add deletion/reprocessing cases to confirm old chunks cannot leak into results.
 
 ## 8. Out of scope for these branches
