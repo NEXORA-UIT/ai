@@ -8,6 +8,7 @@ from src.reranking.cross_encoder import (
     RerankerLoadError,
     get_default_reranker,
 )
+from src.reranking.select import rerank_chunks
 
 __all__ = [
     "BgeReranker",
@@ -16,4 +17,5 @@ __all__ = [
     "RerankerInferenceError",
     "RerankerLoadError",
     "get_default_reranker",
+    "rerank_chunks",
 ]

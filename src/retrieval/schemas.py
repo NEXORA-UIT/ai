@@ -77,3 +77,12 @@ class FusedChunk:
     source: SourceChunk
     rrf_score: float
     channels: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RerankedChunk:
+    """A fused source record with its raw cross-encoder score."""
+
+    source: SourceChunk
+    rerank_score: float
+    rrf_score: float
