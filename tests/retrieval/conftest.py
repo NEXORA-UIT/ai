@@ -37,11 +37,14 @@ def retrieval_database() -> Iterator[
         label: str,
         embedding: list[float],
         metadata: dict[str, object] | None = None,
+        content: str | None = None,
     ) -> tuple[str, str]:
         document_id = uuid.uuid4()
         chunk_id = uuid.uuid4()
         uploaded_by = uuid.uuid4()
-        content = f"retrieval test chunk for {label}"
+        content = (
+            content if content is not None else f"retrieval test chunk for {label}"
+        )
         document_metadata = (
             metadata
             if metadata is not None
