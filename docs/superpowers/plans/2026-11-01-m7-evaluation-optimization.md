@@ -119,3 +119,32 @@
 - [x] **Step 5: Verify and commit.** Run python -m pytest tests/evaluation -q and python -m ruff check evaluation tests/evaluation. Do not make live provider calls in tests. Commit focused files with message feat(evaluation): measure faithfulness with traces.
 
 **Acceptance:** Synthetic fixtures verify metric/seeder correctness; real-document A/B/C runs report comparable retrieval quality and latency on one golden snapshot. Task 4 provides the real judge and trace adapters, but real-document faithfulness remains unmeasured until user-provided PDF/DOCX files and human-reviewed claim annotations exist. Optimization follows measured failures as separate tasks and commits.
+
+### Task 5: Keep variant metrics on the same final top-k
+
+**Files:**
+- Modify: evaluation/run_retrieval.py
+- Test: tests/evaluation/test_run_retrieval.py
+
+**Interfaces:**
+- Before storing or scoring each variant result, deduplicate IDs in rank order and cap the public final result at the shared `k`. This keeps Recall@k, HitRate@k and MRR comparable when the Hybrid+RRF adapter internally materializes up to candidate_k before its final metric cutoff.
+
+- [x] **Step 1: Write a failing regression test.** For `k=5`, let variant B return a relevant chunk at rank 6 while A/C return only the first five decoys; assert all three metrics use only the shared final top-k and per-case outputs contain no more than k unique IDs.
+- [x] **Step 2: Confirm failure.** Run python -m pytest tests/evaluation/test_run_retrieval.py -q. Expected: current MRR gives B a nonzero score from rank 6.
+- [x] **Step 3: Apply the shared cutoff.** Deduplicate and cap every successful variant result to k before storing rows and computing any metric.
+- [x] **Step 4: Verify and commit.** Run python -m pytest tests/evaluation/test_run_retrieval.py tests/evaluation/test_metrics.py -q and Ruff for the changed files. Commit with message fix(evaluation): cap retrieval metrics at final top-k.
+
+### Task 6: Match the seeder embedder to the declared dataset model
+
+**Files:**
+- Modify: evaluation/seed_corpus.py
+- Test: tests/evaluation/test_seed_corpus.py
+
+**Interfaces:**
+- Read the declared model ID and revision from the versioned evaluation manifest and compare them with the injected embedder's model_name, revision, and dimension before opening the database or generating vectors.
+- The synthetic fixture intentionally includes a per-document incompatible-model decoy. Compare against the manifest's primary embedding fingerprint, not every document row, so that the negative eligibility fixture remains usable.
+
+- [ ] **Step 1: Write failing tests.** An embedder with a different model ID or revision must be rejected before database construction or embedding; the matching embedder must remain accepted.
+- [ ] **Step 2: Confirm failure.** Run python -m pytest tests/evaluation/test_seed_corpus.py -q. Expected: mismatched embedder currently reaches storage/embedding.
+- [ ] **Step 3: Validate before side effects.** Check the manifest fingerprint against the embedder before creating DocumentStorage, connecting, or producing vectors.
+- [ ] **Step 4: Verify and commit.** Run python -m pytest tests/evaluation/test_seed_corpus.py -q and Ruff for the changed files; run the guarded PostgreSQL seeder integration test. Commit with message fix(evaluation): validate seeder embedding fingerprint.

@@ -79,6 +79,41 @@ def test_variants_share_snapshot_query_order_and_final_top_k(tmp_path: Path) -> 
     assert encoded["dataset_kind"] == "synthetic_correctness"
 
 
+def test_mrr_and_case_results_use_the_same_final_top_k(tmp_path: Path) -> None:
+    def callback(request):
+        if not request.case.answerable:
+            return RetrievalOutput(chunk_ids=())
+        top_k_decoys = tuple(f"decoy-{index}" for index in range(request.k))
+        if request.variant == "B":
+            # B internally materializes its larger RRF candidate pool; rank 6
+            # must not count when the shared final cutoff is k=5.
+            return RetrievalOutput(
+                chunk_ids=top_k_decoys + (request.case.expected_chunk_ids[0],)
+            )
+        return RetrievalOutput(chunk_ids=top_k_decoys)
+
+    report = run_retrieval(
+        _DATASET,
+        _variants(callback),
+        k=5,
+        candidate_k=20,
+        output_dir=tmp_path,
+    )
+
+    for variant in report.variants.values():
+        assert variant.metrics.recall_at_k == 0.0
+        assert variant.metrics.hit_rate_at_k == 0.0
+        assert variant.metrics.mrr == 0.0
+        assert all(
+            len(row.result) <= 5
+            for row in variant.case_results
+            if not isinstance(row.result, RetrievalFailure)
+        )
+    assert report.variants["B"].case_results[0].result == tuple(
+        f"decoy-{index}" for index in range(5)
+    )
+
+
 def test_answerable_retrieval_failure_counts_zero_and_is_reported(
     tmp_path: Path,
 ) -> None:

@@ -113,6 +113,7 @@ class CaseResult:
             chunk_id: positions.get(chunk_id) for chunk_id in self.expected_chunk_ids
         }
 
+
 @dataclass(frozen=True)
 class RetrievalMetrics:
     recall_at_k: float | None
@@ -426,7 +427,9 @@ def run_retrieval(
             try:
                 output = _to_output(callback(request))
                 elapsed_ms = (time.perf_counter() - started) * 1000
-                result: tuple[str, ...] | RetrievalFailure = tuple(output.chunk_ids)
+                result: tuple[str, ...] | RetrievalFailure = tuple(
+                    dict.fromkeys(output.chunk_ids)
+                )[:k]
                 stage_latencies = {
                     stage: float(value)
                     for stage, value in output.stage_latencies_ms.items()
