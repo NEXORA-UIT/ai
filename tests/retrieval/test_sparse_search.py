@@ -151,6 +151,49 @@ def test_search_sparse_empty_query_skips_database() -> None:
     storage.get_connection.assert_not_called()
 
 
+def test_search_sparse_with_stats_reports_loaded_eligible_corpus_size() -> None:
+    module = import_module("src.retrieval.sparse")
+    rows = [
+        _row(
+            "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            _BOARD_A,
+            "guide.txt",
+            "query-token evidence",
+        ),
+        _row(
+            "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            "dddddddd-dddd-dddd-dddd-dddddddddddd",
+            _BOARD_A,
+            "guide.txt",
+            "unrelated evidence",
+        ),
+    ]
+    storage, _, _ = _storage_with_rows(rows)
+
+    result = module.search_sparse_with_stats(
+        "query-token",
+        _BOARD_A,
+        fingerprint=_valid_fingerprint(),
+        storage=storage,
+    )
+
+    assert result.corpus_size == 2
+    assert len(result.hits) == 1
+    assert result.hits[0].source.chunk_id == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+
+
+def test_search_sparse_with_stats_reports_unknown_size_for_tokenless_query() -> None:
+    module = import_module("src.retrieval.sparse")
+    storage = MagicMock()
+
+    result = module.search_sparse_with_stats("... ---", _BOARD_A, storage=storage)
+
+    assert result.hits == []
+    assert result.corpus_size is None
+    storage.get_connection.assert_not_called()
+
+
 def test_search_sparse_raises_instead_of_truncating_large_corpus() -> None:
     module = import_module("src.retrieval.sparse")
     too_large_error = getattr(module, "CorpusTooLargeError", None)
@@ -176,7 +219,7 @@ def test_search_sparse_raises_instead_of_truncating_large_corpus() -> None:
 @pytest.mark.integration
 @pytest.mark.database
 def test_bm25_board_filter_before_limit(retrieval_database) -> None:
-    from src.retrieval.sparse import search_sparse
+    from src.retrieval.sparse import search_sparse, search_sparse_with_stats
 
     storage, seed_document = retrieval_database
     board_a = str(UUID(_BOARD_A))
@@ -231,3 +274,9 @@ def test_bm25_board_filter_before_limit(retrieval_database) -> None:
     assert len(hits) == 1
     assert hits[0].source.chunk_id == board_a_chunk_id
     assert hits[0].source.board_id == board_a
+
+    measured = search_sparse_with_stats(
+        "sundial target", board_a, top_k=20, storage=storage
+    )
+    assert measured.corpus_size == 2
+    assert [hit.source.chunk_id for hit in measured.hits] == [board_a_chunk_id]

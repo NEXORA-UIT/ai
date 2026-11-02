@@ -10,7 +10,7 @@ from src.retrieval.metadata import (
     DEFAULT_EMBEDDING_FINGERPRINT,
     EmbeddingFingerprint,
 )
-from src.retrieval.schemas import SourceChunk, SparseHit
+from src.retrieval.schemas import SourceChunk, SparseHit, SparseSearchResult
 
 
 class CorpusTooLargeError(RuntimeError):
@@ -50,11 +50,31 @@ def search_sparse(
     storage: DocumentStorage | None = None,
 ) -> list[SparseHit]:
     """Rank eligible chunks from one Board without loading embedding vectors."""
+    return search_sparse_with_stats(
+        question,
+        board_id,
+        top_k=top_k,
+        max_corpus_chunks=max_corpus_chunks,
+        fingerprint=fingerprint,
+        storage=storage,
+    ).hits
+
+
+def search_sparse_with_stats(
+    question: str,
+    board_id: str | UUID,
+    *,
+    top_k: int = 20,
+    max_corpus_chunks: int = 5000,
+    fingerprint: EmbeddingFingerprint | None = None,
+    storage: DocumentStorage | None = None,
+) -> SparseSearchResult:
+    """Return BM25 hits plus the count of eligible chunks loaded for ranking."""
     board_uuid, query_tokens = _validate_inputs(
         question, board_id, top_k, max_corpus_chunks
     )
     if not query_tokens:
-        return []
+        return SparseSearchResult(hits=[], corpus_size=None)
 
     selected_fingerprint = (
         DEFAULT_EMBEDDING_FINGERPRINT if fingerprint is None else fingerprint
@@ -126,5 +146,8 @@ def search_sparse(
         for row in rows
     ]
     if not corpus:
-        return []
-    return rank_sparse(question, corpus, top_k=top_k)
+        return SparseSearchResult(hits=[], corpus_size=0)
+    return SparseSearchResult(
+        hits=rank_sparse(question, corpus, top_k=top_k),
+        corpus_size=len(corpus),
+    )

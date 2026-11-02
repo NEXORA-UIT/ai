@@ -63,6 +63,14 @@ class SparseHit:
 
 
 @dataclass(frozen=True)
+class SparseSearchResult:
+    """Board/model-eligible BM25 results and the loaded corpus size."""
+
+    hits: list[SparseHit]
+    corpus_size: int | None
+
+
+@dataclass(frozen=True)
 class HybridCandidates:
     """Ranked dense and sparse candidates for a single question and Board."""
 
