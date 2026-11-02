@@ -13,6 +13,7 @@ from uuid import UUID
 
 from pgvector import Vector
 
+from evaluation.manifest import load_evaluation_dataset
 from src.embedding.config import DEFAULT_DENSE_DIMENSION
 from src.embedding.embedder import Embedder
 from src.ingestion.storage import DocumentStorage
@@ -55,10 +56,9 @@ def _validate_target(
         raise UnsafeSeedTargetError(
             "test_database_url must exactly match TEST_DATABASE_URL"
         )
-    if (
-        not isinstance(expected_database_name, str)
-        or not expected_database_name.endswith("_test")
-    ):
+    if not isinstance(
+        expected_database_name, str
+    ) or not expected_database_name.endswith("_test"):
         raise UnsafeSeedTargetError("expected database name must end with _test")
     url_database_name = _database_name_from_url(test_database_url)
     if url_database_name != expected_database_name:
@@ -188,6 +188,21 @@ def _validate_fingerprint(documents: list[dict[str, object]]) -> None:
             raise ValueError("metadata.normalized must be a boolean")
 
 
+def _validate_embedder_fingerprint(dataset_path: Path, embedder: Embedder) -> None:
+    """Require generated vectors to use the manifest's primary embedding model."""
+    dataset = load_evaluation_dataset(dataset_path.parent)
+    if dataset.chunk_snapshot_path.resolve() != dataset_path.resolve():
+        raise ValueError("seed dataset must match the manifest chunk snapshot")
+    if (
+        embedder.model_name != dataset.embedding_model_id
+        or embedder.revision != dataset.embedding_revision
+        or embedder.dimension != DEFAULT_DENSE_DIMENSION
+    ):
+        raise ValueError(
+            "seed embedder model, revision, and dimension must match the manifest"
+        )
+
+
 def _embed_documents(
     documents: list[dict[str, object]], embedder: Embedder
 ) -> list[list[float]]:
@@ -248,6 +263,7 @@ def seed_corpus(
     )
     documents = _load_documents(resolved_path)
     _validate_fingerprint(documents)
+    _validate_embedder_fingerprint(resolved_path, embedder)
 
     storage = DocumentStorage(database_url=test_database_url)
     _assert_connected_database(storage, database_name)

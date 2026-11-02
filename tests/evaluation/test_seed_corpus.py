@@ -28,6 +28,18 @@ class _FixedEmbedder:
         return [[1.0] + [0.0] * (DEFAULT_DENSE_DIMENSION - 1) for _ in texts]
 
 
+class _ConfiguredEmbedder(_FixedEmbedder):
+    def __init__(self, model_name: str, revision: str, dimension: int) -> None:
+        self.model_name = model_name
+        self.revision = revision
+        self.dimension = dimension
+        self.embed_calls = 0
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        self.embed_calls += 1
+        return super().embed_texts(texts)
+
+
 def _fake_storage(database_name: str):
     cursor = MagicMock()
     cursor.fetchone.return_value = (database_name,)
@@ -131,6 +143,40 @@ def test_seed_checks_connected_database_before_any_write(
     connection.close.assert_called_once()
 
 
+@pytest.mark.parametrize(
+    ("model_name", "revision", "dimension"),
+    [
+        ("different/model", DEFAULT_MODEL_REVISION, DEFAULT_DENSE_DIMENSION),
+        (DEFAULT_MODEL_ID, "different-revision", DEFAULT_DENSE_DIMENSION),
+        (DEFAULT_MODEL_ID, DEFAULT_MODEL_REVISION, 768),
+    ],
+    ids=["different-model", "different-revision", "different-dimension"],
+)
+def test_seed_rejects_embedder_not_matching_manifest_before_database_or_embedding(
+    monkeypatch: pytest.MonkeyPatch,
+    model_name: str,
+    revision: str,
+    dimension: int,
+) -> None:
+    storage, _connection, _cursor = _fake_storage("nexora_ai_retrieval_test")
+    storage_factory = MagicMock(return_value=storage)
+    monkeypatch.setattr("evaluation.seed_corpus.DocumentStorage", storage_factory)
+    monkeypatch.setenv("TEST_DATABASE_URL", _TEST_URL)
+    embedder = _ConfiguredEmbedder(model_name, revision, dimension)
+
+    with pytest.raises(ValueError, match="embedder.*manifest"):
+        seed_corpus(
+            test_database_url=_TEST_URL,
+            expected_database_name="nexora_ai_retrieval_test",
+            allow_test_seed=True,
+            dataset_path=_DATASET,
+            embedder=embedder,
+        )
+
+    storage_factory.assert_not_called()
+    assert embedder.embed_calls == 0
+
+
 def test_seed_only_writes_fixed_dataset_ids_inside_transaction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -179,8 +225,7 @@ def test_seed_corpus_round_trips_to_isolated_postgres(
     if not database_url:
         pytest.skip("TEST_DATABASE_URL is required for the seeder integration test")
     dataset = [
-        json.loads(line)
-        for line in _DATASET.read_text(encoding="utf-8").splitlines()
+        json.loads(line) for line in _DATASET.read_text(encoding="utf-8").splitlines()
     ]
     expected_ids = [uuid.UUID(document["document_id"]) for document in dataset]
 

@@ -144,7 +144,7 @@
 - Read the declared model ID and revision from the versioned evaluation manifest and compare them with the injected embedder's model_name, revision, and dimension before opening the database or generating vectors.
 - The synthetic fixture intentionally includes a per-document incompatible-model decoy. Compare against the manifest's primary embedding fingerprint, not every document row, so that the negative eligibility fixture remains usable.
 
-- [ ] **Step 1: Write failing tests.** An embedder with a different model ID or revision must be rejected before database construction or embedding; the matching embedder must remain accepted.
-- [ ] **Step 2: Confirm failure.** Run python -m pytest tests/evaluation/test_seed_corpus.py -q. Expected: mismatched embedder currently reaches storage/embedding.
-- [ ] **Step 3: Validate before side effects.** Check the manifest fingerprint against the embedder before creating DocumentStorage, connecting, or producing vectors.
-- [ ] **Step 4: Verify and commit.** Run python -m pytest tests/evaluation/test_seed_corpus.py -q and Ruff for the changed files; run the guarded PostgreSQL seeder integration test. Commit with message fix(evaluation): validate seeder embedding fingerprint.
+- [x] **Step 1: Write failing tests.** An embedder with a different model ID or revision must be rejected before database construction or embedding; the matching embedder must remain accepted.
+- [x] **Step 2: Confirm failure.** Run python -m pytest tests/evaluation/test_seed_corpus.py -q. Expected: mismatched embedder currently reaches storage/embedding.
+- [x] **Step 3: Validate before side effects.** Check the manifest fingerprint against the embedder before creating DocumentStorage, connecting, or producing vectors.
+- [x] **Step 4: Verify and commit.** Run python -m pytest tests/evaluation/test_seed_corpus.py -q and Ruff for the changed files; run the guarded PostgreSQL seeder integration test. Commit with message fix(evaluation): validate seeder embedding fingerprint.
