@@ -1,6 +1,6 @@
 # RAG Retrieval Milestones 2–8 — Draft Design
 
-**Status:** D1, D2, D4 approved on 2026-11-02; D3 LLM/Judge provider and model deferred by the user.
+**Status:** D1–D4 approved on 2026-11-02; D3 provider selected as DeepSeek AI.
 
 ## Intent and current state
 
@@ -49,7 +49,8 @@ These are planned contracts, not current code. A later plan may add fields only 
 
 - D1 approved: Use Python rank_bm25 0.2.2 and BM25Okapi. PostgreSQL selects only eligible chunks from the supplied Board; Python tokenizes the entire eligible corpus and ranks it. No LLM, GPU, PostgreSQL text-search extension, new index, or ingestion change is needed. Fetch at most 5,001 rows to detect a 5,000-chunk cap; exceedance fails explicitly instead of silently ranking a partial corpus. This baseline trades query-time memory/latency for a simple local implementation; Milestone 7 measures the cost.
 - D2 approved: BAAI/bge-reranker-v2-m3 as a multilingual cross-encoder on CPU. This plan pins revision 953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e for reproducibility. Reuse one lazy process instance; candidate pool defaults to and is capped at 20 until CPU latency is measured; final top_k 5 (allow 1–5 when fewer are requested). Real-model smoke tests are opt-in because model weights are large.
-- D3 deferred: The user has not selected an LLM or faithfulness judge provider/model. Provider-neutral grounding, citation validation, deterministic retrieval/citation metrics, and fake-client tests can proceed. Provider adapter and judge-dependent evaluation wait for that selection; do not assume a vendor.
+- D3 approved: The user selected DeepSeek AI for generation and the M7 judge. Pin the API model ID `deepseek-flash`, which DeepSeek currently documents as its Flash model, with the OpenAI-compatible base URL `https://api.deepseek.com`. Use the existing `httpx` dependency, a 30-second explicit timeout, and Chat Completions JSON Output (`response_format={"type":"json_object"}`) with the M6 response shape `{ "answer": string, "cited_chunk_ids": string[] }`. Keep the API key in `DEEPSEEK_API_KEY`; tests use injected mock transports and make no live calls. Cost if wrong: the vendor may change the model behind the stable `deepseek-flash` alias, changing behavior without an ID change.
+- M7 claim-level faithfulness rubric: split the generated answer into atomic factual claims; a claim is supported only when the supplied evidence directly entails it. Citation presence alone is not support. Refusals have no faithfulness denominator. Score is supported factual claims divided by all factual claims; zero factual claims is N/A. Preserve per-claim verdicts and supporting chunk IDs for human review. The judge uses the same pinned `deepseek-flash` alias and a 30-second timeout; fake-judge tests do not count as model faithfulness evidence.
 - D4 approved: Report a first measured baseline before setting hard Recall@k, HitRate@k, MRR, faithfulness, citation-accuracy and latency thresholds. Compare Dense-only, Hybrid+RRF, and Hybrid+RRF+Reranker on one fixed golden dataset, embedding model, chunking and top_k. Synthetic fixtures check correctness; a separate non-sensitive real PDF/DOCX dataset measures quality. Record SRS service latency targets separately until transport/streaming is implemented.
 - RRF uses rank positions from each channel, k = 60, deduplication by chunk_id, and chunk_id as final stable tie-breaker.
 - Milestone 8 returns retrieved evidence only. Express/FastAPI transport, authorization, and Agent invocation are separate integration work.
@@ -62,7 +63,9 @@ These are planned contracts, not current code. A later plan may add fields only 
 
 1. D1: Python rank_bm25 approved; supersedes the earlier PostgreSQL full-text selection.
 2. D2: BGE Reranker v2 M3 on CPU approved; plan revision pinned above.
-3. D3: Provider/model for generation and judge deliberately deferred.
+3. D3: DeepSeek AI selected; use `deepseek-flash`, 30-second timeout, and JSON Output for grounded generation and claim judging.
 4. D4: Baseline measurement before quality gates approved.
 
 References: [rank-bm25 0.2.2](https://pypi.org/project/rank-bm25/0.2.2/) expects a pre-tokenized corpus and query; [BAAI's model repository](https://huggingface.co/BAAI/bge-reranker-v2-m3/tree/main) documents SentenceTransformers CrossEncoder, and the [pinned revision](https://huggingface.co/BAAI/bge-reranker-v2-m3/commit/953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e) is recorded above. The next plan review should focus on BM25 corpus size and CPU reranking latency in the target environment.
+
+Provider references: [DeepSeek API quick start](https://api-docs.deepseek.com/quick_start/agent_integrations/) documents the OpenAI-compatible base URL and current `deepseek-flash` API model; [DeepSeek JSON Output](https://api-docs.deepseek.com/guides/json_mode/) documents the `response_format` contract.

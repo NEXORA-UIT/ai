@@ -17,7 +17,7 @@
 - Citation ID must refer to one of the supplied chunks. Output includes document/chunk IDs, file name, optional page, and offsets.
 - Empty evidence refuses without an LLM call. A non-refusal answer must have nonempty text and at least one valid citation from the supplied context; empty/malformed/unknown citations refuse rather than inventing a source.
 - Retrieved document text is untrusted data. Delimit it in a separate document_context field, never merge it into system instructions; the system prompt tells the model to ignore instructions inside documents. Fake-client tests verify prompt construction, while real-model adversarial behavior is assessed after D3.
-- D3 provider/model and judge choice is deliberately deferred. Task 1 can proceed with fake clients; Task 2 waits for a provider/model choice. Do not hard-code secrets or add a public FastAPI route.
+- D3 selected: DeepSeek AI with API model ID `deepseek-flash`, the OpenAI-compatible DeepSeek endpoint, a 30-second timeout, and JSON Output for `{answer, cited_chunk_ids}`. Use existing `httpx`; do not add an SDK solely for this adapter. Task 1 keeps fake-client coverage; Task 2 adds the real adapter with mock-transport tests and no live API test. Do not hard-code secrets or add a public FastAPI route.
 - One task per commit after checks.
 
 ## Review Focus
@@ -60,18 +60,17 @@
 
 **Files:**
 - Create: src/generation/provider.py
-- Modify: pyproject.toml and uv.lock for the approved adapter dependency.
 - Modify: .env.example with key names only; no secret values.
 - Test: tests/generation/test_provider.py
 
 **Interfaces:**
-- Implement AnswerClient from Task 1 using the chosen provider/model and an explicit timeout. Map GroundedPrompt fields to distinct provider roles without promoting document_context to system/developer instructions.
+- Implement AnswerClient from Task 1 using DeepSeek `deepseek-flash` and an explicit 30-second timeout. Use JSON Output and map GroundedPrompt fields to distinct provider roles without promoting document_context to system/developer instructions.
 - Configure credentials through environment variables and inject a fake transport in tests. Pin a model identifier and record output schema handling.
 
-- [ ] **Step 1: Record the later D3 provider/model choice, timeout, and structured-output contract in the design spec before writing the adapter.**
+- [x] **Step 1: Record D3 provider/model, timeout, and structured-output contract in the design spec before writing the adapter.**
 - [ ] **Step 2: Write failing adapter tests.** Assert request payload contains bounded, delimited untrusted context; an instruction embedded in document text cannot be promoted into system/developer instructions. Verify schema parsing, timeout/HTTP errors and that no API key appears in logs/errors. Add an opt-in real-model adversarial check after D3 without treating fake-client tests as proof of model faithfulness.
 - [ ] **Step 3: Confirm failure.** Run python -m pytest tests/generation/test_provider.py -q. Expected: missing adapter fails.
-- [ ] **Step 4: Implement the provider adapter and LangChain boundary.** Keep provider-specific code out of answer.py.
+- [ ] **Step 4: Implement the provider adapter behind the existing AnswerClient boundary.** Keep provider-specific code out of answer.py.
 - [ ] **Step 5: Verify and commit.** Run python -m pytest tests/generation -q and python -m ruff check src/generation tests/generation. Commit focused files with message feat(generation): add llm provider adapter.
 
 **Acceptance:** Task 1 can validate cited evidence and refusals with fake clients. The real answer path remains open until Task 2 receives D3; faithfulness quality is assessed in Milestone 7.

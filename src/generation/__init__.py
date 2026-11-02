@@ -5,12 +5,15 @@ from src.generation.answer import (
     EvidenceScopeError,
     answer_with_sources,
 )
+from src.generation.provider import DeepSeekAnswerClient, DeepSeekProviderError
 from src.generation.schemas import AnswerResult, Citation, GroundedPrompt
 
 __all__ = [
     "AnswerProviderError",
     "AnswerResult",
     "Citation",
+    "DeepSeekAnswerClient",
+    "DeepSeekProviderError",
     "EvidenceScopeError",
     "GroundedPrompt",
     "answer_with_sources",

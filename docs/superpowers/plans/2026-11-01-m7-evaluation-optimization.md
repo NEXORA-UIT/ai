@@ -4,7 +4,7 @@
 
 **Goal:** Measure standard Recall@k, HitRate@k, MRR, citation accuracy, faithfulness and latency on reproducible datasets before setting quality gates.
 
-**Architecture:** Pure metric functions and synthetic fixtures check correctness. A separate, curated non-sensitive PDF/DOCX corpus with manually labeled relevant chunks measures retrieval quality. One runner compares Dense-only (A), Hybrid+RRF (B), and Hybrid+RRF+Reranker (C) on the same locked corpus and queries. Citation and latency checks can use fake answer clients; real faithfulness judging and Langfuse traces wait for D3 provider/model selection.
+**Architecture:** Pure metric functions and synthetic fixtures check correctness. A separate, curated non-sensitive PDF/DOCX corpus with manually labeled relevant chunks measures retrieval quality. One runner compares Dense-only (A), Hybrid+RRF (B), and Hybrid+RRF+Reranker (C) on the same locked corpus and queries. Citation and latency checks can use fake answer clients; claim faithfulness uses the selected DeepSeek judge behind an injected transport.
 
 **Tech Stack:** Python 3.12, pytest, JSONL, perf_counter, existing retrieval/reranking stack, future Langfuse and approved judge.
 
@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - D4 approved: publish a measured baseline first. Do not set hard Recall@k, HitRate@k, MRR, faithfulness, citation-accuracy or latency pass/fail thresholds in this milestone.
-- D3 generation and judge provider/model remain deferred. Tasks 1–3 may proceed; Task 4 needs that choice and a real provider adapter.
+- D3 selected in the design spec: DeepSeek `deepseek-flash` for generation and the M7 claim judge. Tasks 1–3 use offline deterministic clients; Task 4 uses injected mock transports in tests and does not make live model calls.
 - Synthetic fixtures are for deterministic correctness tests. Real-document quality evaluation uses a separately versioned, non-sensitive PDF/DOCX sample and human-labeled relevant chunks; no production documents, credentials or private user data enter either dataset. Use the existing ingestion output to freeze the real-document chunk snapshot; do not modify ingestion.
 - For each answerable query with relevant set R and unique top-k retrieved IDs T, Recall@k = |R intersect T| / |R|, HitRate@k = 1 if the intersection is nonempty else 0, and reciprocal rank = 1 / rank of the first relevant hit within the returned top-k list (0 if absent). Aggregate each as a macro mean over all answerable queries. Report N/A and count 0 if none are answerable. Deduplicate retrieved IDs before scoring.
 - Failed retrieval on an answerable query contributes 0 to Recall@k, HitRate@k and MRR, remains in the denominator, and appears in the failure report. Unanswerable queries are excluded from these three denominators and reported separately; never silently drop failed or missing cases.
@@ -95,7 +95,7 @@
 - [ ] **Step 3: Implement deterministic metrics and runner.** Label fake-client reports synthetic correctness, record refusal counts and per-stage timing, and never claim real-model faithfulness from them.
 - [ ] **Step 4: Verify and commit.** Run python -m pytest tests/evaluation -q and python -m ruff check evaluation tests/evaluation. Commit focused files with message feat(evaluation): report citations and latency.
 
-### Task 4: Add real faithfulness judging and Langfuse after D3
+### Task 4: Add faithfulness judging and Langfuse using D3
 
 **Files:**
 - Create: evaluation/faithfulness.py
@@ -111,7 +111,7 @@
 - faithfulness_score(answer: AnswerResult, evidence: Sequence[SourceChunk], judge: FaithfulnessJudge) -> FaithfulnessResult.
 - Langfuse tracing is best effort; telemetry outage cannot change a search or answer result. Reports retain trace IDs and raw judge verdicts for human audit.
 
-- [ ] **Step 1: Record the later D3 provider/model and claim rubric in the design spec.**
+- [x] **Step 1: Record D3 provider/model and claim rubric in the design spec before implementation.**
 - [ ] **Step 2: Write failing tests.** Cover supported/unsupported claims, refusals, fake judge errors, and offline Langfuse behavior.
 - [ ] **Step 3: Confirm failure.** Run python -m pytest tests/evaluation/test_faithfulness.py tests/evaluation/test_langfuse_trace.py -q. Expected: missing judge/trace adapter fails.
 - [ ] **Step 4: Implement judge adapter, traces and report fields.** Keep deterministic citation checks distinct from judge-based faithfulness.
