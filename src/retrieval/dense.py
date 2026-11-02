@@ -9,8 +9,13 @@ from uuid import UUID
 
 from pgvector import Vector
 
+from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
 from src.embedding.embedder import BgeM3Embedder, Embedder
 from src.ingestion.storage import DocumentStorage
+from src.retrieval.metadata import (
+    DEFAULT_EMBEDDING_FINGERPRINT,
+    EmbeddingFingerprint,
+)
 from src.retrieval.schemas import RetrievedChunk
 
 _DENSE_DIMENSION = 1024
@@ -59,6 +64,7 @@ def search_by_vector(
     board_id: str | UUID,
     *,
     top_k: int = 5,
+    fingerprint: EmbeddingFingerprint | None = None,
     storage: DocumentStorage | None = None,
 ) -> list[RetrievedChunk]:
     """Return the closest READY chunks belonging to ``board_id``.
@@ -68,6 +74,13 @@ def search_by_vector(
     """
     board_uuid = _validate_board_and_limit(board_id, top_k)
     vector_values = _validate_query_vector(query_vector)
+    selected_fingerprint = (
+        DEFAULT_EMBEDDING_FINGERPRINT if fingerprint is None else fingerprint
+    )
+    if selected_fingerprint.dimension != len(vector_values):
+        raise ValueError(
+            "fingerprint dimension must match the query vector dimension"
+        )
     db = storage if storage is not None else DocumentStorage()
     connection = db.get_connection()
 
@@ -78,6 +91,7 @@ def search_by_vector(
                     """
                     SELECT dc.id,
                            dc.document_id,
+                           d.board_id,
                            dc.chunk_index,
                            d.file_name,
                            d.storage_key,
@@ -90,12 +104,21 @@ def search_by_vector(
                     JOIN documents AS d ON d.id = dc.document_id
                     WHERE d.board_id = %(board_id)s
                       AND d.status = 'READY'
+                      AND d.metadata -> 'model_id' = to_jsonb(%(model_id)s::text)
+                      AND d.metadata -> 'model_revision' =
+                          to_jsonb(%(model_revision)s::text)
+                      AND d.metadata -> 'dimension' = to_jsonb(%(dimension)s::integer)
+                      AND d.metadata -> 'normalized' = to_jsonb(%(normalized)s::boolean)
                     ORDER BY cosine_distance ASC, dc.id ASC
                     LIMIT %(top_k)s;
                     """,
                     {
                         "query_vector": Vector(vector_values),
                         "board_id": board_uuid,
+                        "model_id": selected_fingerprint.model_id,
+                        "model_revision": selected_fingerprint.model_revision,
+                        "dimension": selected_fingerprint.dimension,
+                        "normalized": selected_fingerprint.normalized,
                         "top_k": top_k,
                     },
                 )
@@ -107,14 +130,15 @@ def search_by_vector(
         RetrievedChunk(
             chunk_id=str(row[0]),
             document_id=str(row[1]),
-            chunk_index=row[2],
-            file_name=row[3],
-            storage_key=row[4],
-            content=row[5],
-            page_number=row[6],
-            start_offset=row[7],
-            end_offset=row[8],
-            cosine_distance=float(row[9]),
+            board_id=str(row[2]),
+            chunk_index=row[3],
+            file_name=row[4],
+            storage_key=row[5],
+            content=row[6],
+            page_number=row[7],
+            start_offset=row[8],
+            end_offset=row[9],
+            cosine_distance=float(row[10]),
         )
         for row in rows
     ]
@@ -134,8 +158,20 @@ def search_by_text(
 
     _validate_board_and_limit(board_id, top_k)
     selected_embedder = embedder if embedder is not None else get_default_embedder()
+    fingerprint = EmbeddingFingerprint(
+        model_id=selected_embedder.model_name,
+        model_revision=selected_embedder.revision,
+        dimension=selected_embedder.dimension,
+        normalized=DEFAULT_NORMALIZE_EMBEDDINGS,
+    )
     vectors = selected_embedder.embed_texts([question])
     if len(vectors) != 1:
         raise ValueError("embedder must return exactly one vector for one question")
 
-    return search_by_vector(vectors[0], board_id, top_k=top_k, storage=storage)
+    return search_by_vector(
+        vectors[0],
+        board_id,
+        top_k=top_k,
+        fingerprint=fingerprint,
+        storage=storage,
+    )

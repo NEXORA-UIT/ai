@@ -101,6 +101,10 @@ def test_search_by_vector_uses_board_ready_cosine_query() -> None:
     limit = normalized_query.index("limit")
     assert "join documents as d on d.id = dc.document_id" in normalized_query
     assert "d.status = 'ready'" in normalized_query
+    assert "d.metadata -> 'model_id'" in normalized_query
+    assert "d.metadata -> 'model_revision'" in normalized_query
+    assert "d.metadata -> 'dimension'" in normalized_query
+    assert "d.metadata -> 'normalized'" in normalized_query
     assert "dc.embedding <=> %(query_vector)s::vector" in normalized_query
     assert where < order < limit
     assert params["board_id"] == UUID(board_id)
@@ -112,6 +116,7 @@ def test_search_by_vector_maps_source_fields_and_distance() -> None:
     row = (
         UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
         UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+        UUID("11111111-1111-1111-1111-111111111111"),
         3,
         "handbook.txt",
         "local://handbook.txt",
@@ -133,6 +138,7 @@ def test_search_by_vector_maps_source_fields_and_distance() -> None:
     result = results[0]
     assert result.chunk_id == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     assert result.document_id == "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    assert result.board_id == "11111111-1111-1111-1111-111111111111"
     assert result.chunk_index == 3
     assert result.file_name == "handbook.txt"
     assert result.storage_key == "local://handbook.txt"
@@ -227,6 +233,10 @@ def test_search_by_text_embeds_once_and_delegates_vector(monkeypatch) -> None:
     vector = _valid_vector()
 
     class FixedEmbedder:
+        model_name = "BAAI/bge-m3"
+        revision = "test-revision"
+        dimension = 1024
+
         def __init__(self) -> None:
             self.calls: list[list[str]] = []
 
@@ -244,12 +254,14 @@ def test_search_by_text_embeds_once_and_delegates_vector(monkeypatch) -> None:
         board_id: str,
         *,
         top_k: int,
+        fingerprint: object,
         storage: object,
     ) -> list[object]:
         captured.update(
             query_vector=query_vector,
             board_id=board_id,
             top_k=top_k,
+            fingerprint=fingerprint,
             storage=storage,
         )
         return expected_results
@@ -269,6 +281,12 @@ def test_search_by_text_embeds_once_and_delegates_vector(monkeypatch) -> None:
         "query_vector": vector,
         "board_id": "11111111-1111-1111-1111-111111111111",
         "top_k": 3,
+        "fingerprint": import_module("src.retrieval.metadata").EmbeddingFingerprint(
+            model_id="BAAI/bge-m3",
+            model_revision="test-revision",
+            dimension=1024,
+            normalized=True,
+        ),
         "storage": storage,
     }
     assert results is expected_results

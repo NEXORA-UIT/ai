@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
 from src.ingestion.pipeline import ingest_file_to_storage
 from src.ingestion.schemas import EmbeddedChunk, ExtractionResult
 from src.ingestion.tokenizer import WhitespaceTokenCounter
@@ -118,9 +119,33 @@ def test_txt_ingestion_to_scoped_retrieval_e2e(
         ]
         assert len(stored.chunks[0].embedding) == 1024
 
-        seed_document(board_b, "READY", "board-b-closest", _QUERY_VECTOR)
-        seed_document(board_a, "PROCESSING", "processing-closest", _QUERY_VECTOR)
-        seed_document(board_a, "FAILED", "failed-closest", _QUERY_VECTOR)
+        compatible_metadata = {
+            "model_id": embedder.model_name,
+            "model_revision": embedder.revision,
+            "dimension": embedder.dimension,
+            "normalized": DEFAULT_NORMALIZE_EMBEDDINGS,
+        }
+        seed_document(
+            board_b,
+            "READY",
+            "board-b-closest",
+            _QUERY_VECTOR,
+            metadata=compatible_metadata,
+        )
+        seed_document(
+            board_a,
+            "PROCESSING",
+            "processing-closest",
+            _QUERY_VECTOR,
+            metadata=compatible_metadata,
+        )
+        seed_document(
+            board_a,
+            "FAILED",
+            "failed-closest",
+            _QUERY_VECTOR,
+            metadata=compatible_metadata,
+        )
 
         results = search_by_text(
             "When is the release date?",
@@ -134,6 +159,7 @@ def test_txt_ingestion_to_scoped_retrieval_e2e(
         assert len(results) == 1
         result = results[0]
         assert result.document_id == persisted_document_id
+        assert result.board_id == board_a
         assert result.chunk_index == 0
         assert result.file_name == "nexora_release.txt"
         assert result.storage_key.startswith("local://")

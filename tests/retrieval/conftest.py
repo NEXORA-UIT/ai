@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import uuid
 from collections.abc import Callable, Iterator
@@ -9,12 +10,18 @@ from collections.abc import Callable, Iterator
 import pytest
 from pgvector import Vector
 
+from src.embedding.config import (
+    DEFAULT_DENSE_DIMENSION,
+    DEFAULT_MODEL_ID,
+    DEFAULT_MODEL_REVISION,
+    DEFAULT_NORMALIZE_EMBEDDINGS,
+)
 from src.ingestion.storage import DocumentStorage
 
 
 @pytest.fixture
 def retrieval_database() -> Iterator[
-    tuple[DocumentStorage, Callable[[str, str, str, list[float]], tuple[str, str]]]
+    tuple[DocumentStorage, Callable[..., tuple[str, str]]]
 ]:
     """Yield test storage and a seeder that tracks only its own documents."""
     database_url = os.environ.get("TEST_DATABASE_URL")
@@ -25,12 +32,26 @@ def retrieval_database() -> Iterator[
     document_ids: list[uuid.UUID] = []
 
     def seed_document(
-        board_id: str, status: str, label: str, embedding: list[float]
+        board_id: str,
+        status: str,
+        label: str,
+        embedding: list[float],
+        metadata: dict[str, object] | None = None,
     ) -> tuple[str, str]:
         document_id = uuid.uuid4()
         chunk_id = uuid.uuid4()
         uploaded_by = uuid.uuid4()
         content = f"retrieval test chunk for {label}"
+        document_metadata = (
+            metadata
+            if metadata is not None
+            else {
+                "model_id": DEFAULT_MODEL_ID,
+                "model_revision": DEFAULT_MODEL_REVISION,
+                "dimension": DEFAULT_DENSE_DIMENSION,
+                "normalized": DEFAULT_NORMALIZE_EMBEDDINGS,
+            }
+        )
         document_ids.append(document_id)
 
         connection = storage.get_connection()
@@ -45,7 +66,7 @@ def retrieval_database() -> Iterator[
                         ) VALUES (
                             %(id)s, %(board_id)s, %(uploaded_by)s, %(file_name)s,
                             %(storage_key)s, 'text/plain', %(file_size)s,
-                            %(checksum)s, %(status)s, '{}'::jsonb
+                            %(checksum)s, %(status)s, %(metadata)s::jsonb
                         );
                         """,
                         {
@@ -57,6 +78,7 @@ def retrieval_database() -> Iterator[
                             "file_size": len(content),
                             "checksum": uuid.uuid4().hex,
                             "status": status,
+                            "metadata": json.dumps(document_metadata),
                         },
                     )
                     cursor.execute(

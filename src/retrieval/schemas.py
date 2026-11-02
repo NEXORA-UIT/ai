@@ -11,6 +11,7 @@ class RetrievedChunk:
 
     chunk_id: str
     document_id: str
+    board_id: str
     chunk_index: int
     file_name: str
     storage_key: str
