@@ -60,3 +60,11 @@ class SparseHit:
 
     source: SourceChunk
     sparse_score: float
+
+
+@dataclass(frozen=True)
+class HybridCandidates:
+    """Ranked dense and sparse candidates for a single question and Board."""
+
+    dense: list[RetrievedChunk]
+    sparse: list[SparseHit]
