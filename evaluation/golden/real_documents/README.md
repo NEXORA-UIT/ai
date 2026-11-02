@@ -9,3 +9,8 @@ license and provenance notes, SHA-256 checksums, a frozen chunk snapshot, and
 manually reviewed query labels. Run it only through the guarded evaluation
 seeder against `TEST_DATABASE_URL`. Synthetic fixtures under `../synthetic/`
 are correctness tests and cannot be reported as real-document quality results.
+
+After the source corpus and query labels are reviewed, add claim-level answer
+annotations as `answers.jsonl`. Until then, the faithfulness framework can only
+be exercised with synthetic correctness tests; no real-document faithfulness
+baseline is available.

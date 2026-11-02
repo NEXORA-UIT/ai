@@ -6,7 +6,7 @@
 
 **Architecture:** Pure metric functions and synthetic fixtures check correctness. A separate, curated non-sensitive PDF/DOCX corpus with manually labeled relevant chunks measures retrieval quality. One runner compares Dense-only (A), Hybrid+RRF (B), and Hybrid+RRF+Reranker (C) on the same locked corpus and queries. Citation and latency checks can use fake answer clients; claim faithfulness uses the selected DeepSeek judge behind an injected transport.
 
-**Tech Stack:** Python 3.12, pytest, JSONL, perf_counter, existing retrieval/reranking stack, future Langfuse and approved judge.
+**Tech Stack:** Python 3.12, pytest, JSONL, perf_counter, existing retrieval/reranking stack, HTTPX, Langfuse OTLP/HTTP JSON and the approved DeepSeek judge.
 
 **Spec:** docs/superpowers/specs/2026-11-01-rag-retrieval-m2-m8-design.md and docs/rag-architecture.md
 
@@ -101,8 +101,9 @@
 - Create: evaluation/faithfulness.py
 - Create: evaluation/langfuse_trace.py
 - Modify: evaluation/run_answers.py
-- Modify: pyproject.toml and uv.lock for the approved judge/Langfuse dependencies.
-- Add: evaluation/golden/real_documents/answers.jsonl with approved claim-level annotations.
+- Modify: .env.example for optional Langfuse credentials.
+- Do not add a Langfuse SDK or service: reuse HTTPX and send OTLP/HTTP JSON directly to the current Langfuse v4 trace endpoint.
+- Do not create answers.jsonl until the user supplies real PDF/DOCX files and reviews claim-level annotations.
 - Test: tests/evaluation/test_faithfulness.py
 - Test: tests/evaluation/test_langfuse_trace.py
 
@@ -112,9 +113,9 @@
 - Langfuse tracing is best effort; telemetry outage cannot change a search or answer result. Reports retain trace IDs and raw judge verdicts for human audit.
 
 - [x] **Step 1: Record D3 provider/model and claim rubric in the design spec before implementation.**
-- [ ] **Step 2: Write failing tests.** Cover supported/unsupported claims, refusals, fake judge errors, and offline Langfuse behavior.
-- [ ] **Step 3: Confirm failure.** Run python -m pytest tests/evaluation/test_faithfulness.py tests/evaluation/test_langfuse_trace.py -q. Expected: missing judge/trace adapter fails.
-- [ ] **Step 4: Implement judge adapter, traces and report fields.** Keep deterministic citation checks distinct from judge-based faithfulness.
-- [ ] **Step 5: Verify and commit.** Run python -m pytest tests/evaluation -q and python -m ruff check evaluation tests/evaluation. Commit focused files with message feat(evaluation): measure faithfulness with traces.
+- [x] **Step 2: Write failing tests.** Cover supported/unsupported claims, refusals, fake judge errors, offline Langfuse behavior, report verdicts, trace IDs, and cross-Board evidence rejection before judge calls.
+- [x] **Step 3: Confirm failure.** The initial focused run failed with the expected missing evaluation.faithfulness module.
+- [x] **Step 4: Implement judge adapter, traces and report fields.** Keep deterministic citation checks distinct from judge-based faithfulness. Langfuse receives only aggregate evaluator metadata and scores; local reports retain raw claim verdicts. Use cited, canonical evidence by default and reject any supplied cross-Board evidence before the judge call.
+- [x] **Step 5: Verify and commit.** Run python -m pytest tests/evaluation -q and python -m ruff check evaluation tests/evaluation. Do not make live provider calls in tests. Commit focused files with message feat(evaluation): measure faithfulness with traces.
 
-**Acceptance:** Synthetic fixtures verify metric/seeder correctness; real-document A/B/C runs report comparable retrieval quality and latency on one golden snapshot. After D3, Task 4 adds real answer faithfulness. Optimization follows measured failures as separate tasks and commits.
+**Acceptance:** Synthetic fixtures verify metric/seeder correctness; real-document A/B/C runs report comparable retrieval quality and latency on one golden snapshot. Task 4 provides the real judge and trace adapters, but real-document faithfulness remains unmeasured until user-provided PDF/DOCX files and human-reviewed claim annotations exist. Optimization follows measured failures as separate tasks and commits.

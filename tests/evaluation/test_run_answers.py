@@ -7,9 +7,11 @@ import json
 from pathlib import Path
 
 from evaluation.answer_metrics import load_canonical_source_chunks
+from evaluation.faithfulness import FaithfulnessClaim, FaithfulnessResult
 from evaluation.run_answers import run_answers
 from evaluation.schemas import DatasetKind
 from src.generation.schemas import AnswerResult, Citation
+from src.retrieval.schemas import SourceChunk
 
 _DATASET = Path(__file__).parents[2] / "evaluation" / "golden" / "synthetic"
 _BOARD_ID = "11111111-1111-4111-8111-111111111111"
@@ -185,3 +187,154 @@ def test_runner_rejects_invalid_answer_outputs(tmp_path: Path) -> None:
     assert report.failure_count == 3
     assert report.citation_accuracy == 0.0
     assert all(row.failure is not None for row in report.case_results)
+
+
+class _FakeJudge:
+    model_id = "fake-judge-v1"
+
+    def __init__(self, result: FaithfulnessResult | Exception) -> None:
+        self.result = result
+        self.calls: list[tuple[str, tuple[SourceChunk, ...]]] = []
+
+    def judge(self, answer: str, evidence):
+        self.calls.append((answer, tuple(evidence)))
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def _faithful_result() -> FaithfulnessResult:
+    return FaithfulnessResult(
+        score=1.0,
+        claims=(
+            FaithfulnessClaim("Approved procedure is documented.", True, (_CHUNK_ID,)),
+        ),
+    )
+
+
+def test_runner_reports_claim_verdicts_and_best_effort_trace_id(tmp_path: Path) -> None:
+    corpus = load_canonical_source_chunks(_DATASET)
+    source = corpus[_CHUNK_ID]
+    judge = _FakeJudge(_faithful_result())
+
+    def answer(case):
+        if not case.answerable:
+            return AnswerResult(
+                text="I cannot answer from the available evidence.",
+                citations=(),
+                refused=True,
+            )
+        return AnswerResult(
+            text="The approved procedure is documented.",
+            citations=tuple(
+                Citation(
+                    chunk_id=source.chunk_id,
+                    document_id=source.document_id,
+                    file_name=source.file_name,
+                    page_number=source.page_number,
+                    start_offset=source.start_offset,
+                    end_offset=source.end_offset,
+                )
+                for _ in range(2)
+            ),
+            refused=False,
+        )
+
+    class _TraceSink:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def record_faithfulness(self, **kwargs):
+            self.calls.append(kwargs)
+            return "f" * 32
+
+    trace = _TraceSink()
+    report = run_answers(
+        _DATASET,
+        answer,
+        output_dir=tmp_path,
+        judge=judge,
+        trace_client=trace,
+    )
+
+    assert report.faithfulness == 1.0
+    assert report.faithfulness_judge_kind == "fake_correctness"
+    assert report.case_results[0].faithfulness == _faithful_result()
+    assert report.case_results[0].trace_id == "f" * 32
+    assert len(judge.calls) == 2  # The refusal case is excluded.
+    assert len(judge.calls[0][1]) == 1  # Duplicate citations do not duplicate evidence.
+    assert len(trace.calls) == 2
+    payload = json.loads((tmp_path / "answer-report.json").read_text(encoding="utf-8"))
+    assert payload["faithfulness_status"] == "measured_fake_correctness"
+    assert payload["cases"][0]["faithfulness"]["claims"][0]["claim"]
+    assert payload["cases"][0]["trace_id"] == "f" * 32
+    assert "storage_key" not in json.dumps(payload)
+
+
+def test_runner_rejects_cross_board_evidence_before_judge_call(tmp_path: Path) -> None:
+    corpus = load_canonical_source_chunks(_DATASET)
+    source = corpus[_CHUNK_ID]
+    answer_result = AnswerResult(
+        text="An answer with a citation.",
+        citations=(
+            Citation(
+                chunk_id=source.chunk_id,
+                document_id=source.document_id,
+                file_name=source.file_name,
+                page_number=source.page_number,
+                start_offset=source.start_offset,
+                end_offset=source.end_offset,
+            ),
+        ),
+        refused=False,
+    )
+    judge = _FakeJudge(_faithful_result())
+    cross_board = SourceChunk(
+        **{**source.__dict__, "board_id": "22222222-2222-4222-8222-222222222222"}
+    )
+
+    report = run_answers(
+        _DATASET,
+        lambda _case: answer_result,
+        output_dir=tmp_path,
+        judge=judge,
+        evidence_for_answer=lambda _case, _answer: [cross_board],
+    )
+
+    assert report.case_results[0].faithfulness is None
+    assert report.case_results[0].faithfulness_failure is not None
+    assert "evaluation failed" in report.case_results[0].faithfulness_failure
+    assert judge.calls == []
+
+
+def test_judge_failure_does_not_reclassify_answer_failure(tmp_path: Path) -> None:
+    corpus = load_canonical_source_chunks(_DATASET)
+    source = corpus[_CHUNK_ID]
+    answer_result = AnswerResult(
+        text="An answer with a citation.",
+        citations=(
+            Citation(
+                chunk_id=source.chunk_id,
+                document_id=source.document_id,
+                file_name=source.file_name,
+                page_number=source.page_number,
+                start_offset=source.start_offset,
+                end_offset=source.end_offset,
+            ),
+        ),
+        refused=False,
+    )
+
+    report = run_answers(
+        _DATASET,
+        lambda _case: answer_result,
+        output_dir=tmp_path,
+        judge=_FakeJudge(RuntimeError("sensitive provider details")),
+    )
+
+    row = report.case_results[0]
+    assert row.result == answer_result
+    assert row.failure is None
+    assert row.faithfulness is None
+    assert "sensitive provider details" not in (row.faithfulness_failure or "")
+    assert report.failure_count == 0
