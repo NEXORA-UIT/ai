@@ -68,3 +68,12 @@ class HybridCandidates:
 
     dense: list[RetrievedChunk]
     sparse: list[SparseHit]
+
+
+@dataclass(frozen=True)
+class FusedChunk:
+    """A deduplicated chunk with its reciprocal-rank score and provenance."""
+
+    source: SourceChunk
+    rrf_score: float
+    channels: tuple[str, ...]
