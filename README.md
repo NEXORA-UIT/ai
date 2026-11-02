@@ -4,7 +4,7 @@
 
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white) ![FastAPI foundation](https://img.shields.io/badge/FastAPI-foundation-009688?style=for-the-badge&logo=fastapi&logoColor=white) ![Phase 0 foundation](https://img.shields.io/badge/Phase-0%20foundation-6D5DFB?style=for-the-badge)
 
-The AI service for Nexora. **The service currently provides a FastAPI health endpoint and a read-only PostgreSQL/pgvector connectivity check.** Standalone document-ingestion and Board-scoped dense-retrieval cores are implemented, but they are not exposed through an API or connected to a worker or answer-generation flow yet.
+The AI service for Nexora. **The service currently provides a FastAPI health endpoint and a read-only PostgreSQL/pgvector connectivity check.** Standalone document ingestion and Board-scoped hybrid retrieval, RRF fusion, reranking, and grounded-answer components are available as Python modules; they are not exposed through FastAPI or connected to a worker yet.
 
 ## Repository map
 
@@ -17,9 +17,9 @@ src/worker/                     future worker
 src/ingestion/                  document ingestion pipeline
 src/chunking/                   future text chunking
 src/embedding/                  BGE-M3 embedding generation
-src/retrieval/                  Board-scoped dense vector retrieval
-src/reranking/                  future result reranking
-src/generation/                 future answer generation
+src/retrieval/                  Board-scoped dense and hybrid retrieval
+src/reranking/                  cross-encoder result reranking
+src/generation/                 grounded answer generation and citations
 scripts/check_db.py             manual database connectivity check
 evaluation/                     future evaluation suite
 tests/                          health and database probe tests
@@ -51,6 +51,25 @@ uv run --env-file .env python -m scripts.check_db
 ```
 
 On success, the command prints `PostgreSQL/pgvector check passed (vector <version>).` It only reads the extension version and runs a vector operation. The backend repository owns extension creation and all Prisma migrations.
+
+## Search documents (standalone Python)
+
+`search_documents()` runs Board-scoped hybrid retrieval, RRF fusion and cross-encoder reranking. Set `DATABASE_URL` in `.env` and pass a Board ID the caller is already authorized to access. Authorization itself remains the responsibility of the future backend/API boundary.
+
+```python
+from src.retrieval import search_documents
+
+results = search_documents(
+    "What is the document retention policy?",
+    board_id="11111111-1111-4111-8111-111111111111",
+    top_k=5,
+)
+
+for chunk in results.chunks:
+    print(chunk.file_name, chunk.page_number, chunk.content)
+```
+
+Each returned chunk includes document/chunk IDs, source locations, and RRF/reranker scores. The public result intentionally omits the internal storage key.
 
 ## Service boundary
 

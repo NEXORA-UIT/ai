@@ -94,3 +94,28 @@ class RerankedChunk:
     source: SourceChunk
     rerank_score: float
     rrf_score: float
+
+
+@dataclass(frozen=True)
+class SearchChunk:
+    """Public, citation-ready source projection with no internal storage key."""
+
+    chunk_id: str
+    document_id: str
+    chunk_index: int
+    file_name: str
+    content: str
+    page_number: int | None
+    start_offset: int | None
+    end_offset: int | None
+    rerank_score: float
+    rrf_score: float
+
+
+@dataclass(frozen=True)
+class SearchResult:
+    """Board-scoped final search results for a single question."""
+
+    question: str
+    board_id: str
+    chunks: tuple[SearchChunk, ...]

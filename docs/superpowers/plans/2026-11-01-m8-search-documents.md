@@ -48,9 +48,9 @@
 - Produce search_documents(question: str, board_id: str | UUID, *, top_k: int = 5, candidate_k: int = 20, embedder: Embedder | None = None, storage: DocumentStorage | None = None, reranker: Reranker | None = None) -> SearchResult.
 - Reuse search_hybrid_candidates(), fuse_rrf(), rerank_chunks(); do not reimplement their SQL/ranking.
 
-- [ ] **Step 1: Write failing facade tests.** Assert all Review Focus cases, exact argument forwarding, stable final source fields, and top_k <= candidate_k <= 20. Database test uses Board A/B plus READY/non-READY/model-mismatch decoys and runs with TEST_DATABASE_URL.
-- [ ] **Step 2: Confirm failure.** Run python -m pytest tests/retrieval/test_search_documents.py -q. Expected: missing public facade fails.
-- [ ] **Step 3: Implement facade and export.** Keep one query embedding, call fuse_rrf(..., top_k=candidate_k) before reranking, and build SearchChunk explicitly from each final hit. Expose source metadata without raw vectors, storage_key, or storage credentials.
-- [ ] **Step 4: Verify and commit.** Run python -m pytest tests/retrieval tests/reranking -q and python -m ruff check src/retrieval src/reranking tests/retrieval tests/reranking. Confirm database test actually executes when TEST_DATABASE_URL is configured. Commit focused files with message feat(retrieval): expose search_documents facade.
+- [x] **Step 1: Write failing facade tests.** Assert all Review Focus cases, exact argument forwarding, stable final source fields, and top_k <= candidate_k <= 20. Database test uses Board A/B plus READY/non-READY/model-mismatch decoys and runs with TEST_DATABASE_URL.
+- [x] **Step 2: Confirm failure.** Run python -m pytest tests/retrieval/test_search_documents.py -q. Expected: missing public facade fails.
+- [x] **Step 3: Implement facade and export.** Keep one query embedding, call fuse_rrf(..., top_k=candidate_k) before reranking, and build SearchChunk explicitly from each final hit. Expose source metadata without raw vectors, storage_key, or storage credentials.
+- [x] **Step 4: Verify and commit.** Run python -m pytest tests/retrieval tests/reranking -q and python -m ruff check src/retrieval src/reranking tests/retrieval tests/reranking. Confirm database test actually executes when TEST_DATABASE_URL is configured. Commit focused files with message feat(retrieval): expose search_documents facade.
 
 **Acceptance:** A single Python call returns final cited-source-ready chunks for the supplied Board. Future Agent and transport work may import it without changing retrieval internals.

@@ -8,9 +8,12 @@ from src.retrieval.schemas import (
     FusedChunk,
     HybridCandidates,
     RetrievedChunk,
+    SearchChunk,
+    SearchResult,
     SourceChunk,
     SparseHit,
 )
+from src.retrieval.search_documents import search_documents
 from src.retrieval.sparse import CorpusTooLargeError, search_sparse
 
 __all__ = [
@@ -19,6 +22,8 @@ __all__ = [
     "SparseHit",
     "HybridCandidates",
     "FusedChunk",
+    "SearchChunk",
+    "SearchResult",
     "EmbeddingFingerprint",
     "CorpusTooLargeError",
     "get_default_embedder",
@@ -27,4 +32,5 @@ __all__ = [
     "search_sparse",
     "search_hybrid_candidates",
     "fuse_rrf",
+    "search_documents",
 ]
