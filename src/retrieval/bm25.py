@@ -9,6 +9,7 @@ from collections.abc import Sequence
 
 from rank_bm25 import BM25Okapi
 
+from src.retrieval.config import DEFAULT_CANDIDATE_K
 from src.retrieval.schemas import SourceChunk, SparseHit
 
 _TOKEN_PATTERN = re.compile(r"[\w]+(?:-[\w]+)+|[\w]+", re.UNICODE)
@@ -41,7 +42,7 @@ def rank_sparse(
     question: str,
     corpus: Sequence[SourceChunk],
     *,
-    top_k: int = 20,
+    top_k: int = DEFAULT_CANDIDATE_K,
 ) -> list[SparseHit]:
     """Rank token-overlapping chunks with BM25 and exact-ID tie breaking."""
     _validate_top_k(top_k)

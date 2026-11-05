@@ -1,20 +1,7 @@
-"""Dense and semantic retrieval operations."""
+"""Dense and semantic retrieval operations with lazy public exports."""
 
-from src.retrieval.dense import get_default_embedder, search_by_text, search_by_vector
-from src.retrieval.fusion import fuse_rrf
-from src.retrieval.hybrid import search_hybrid_candidates
-from src.retrieval.metadata import EmbeddingFingerprint
-from src.retrieval.schemas import (
-    FusedChunk,
-    HybridCandidates,
-    RetrievedChunk,
-    SearchChunk,
-    SearchResult,
-    SourceChunk,
-    SparseHit,
-)
-from src.retrieval.search_documents import search_documents
-from src.retrieval.sparse import CorpusTooLargeError, search_sparse
+from importlib import import_module
+from typing import Any
 
 __all__ = [
     "RetrievedChunk",
@@ -34,3 +21,35 @@ __all__ = [
     "fuse_rrf",
     "search_documents",
 ]
+
+_EXPORTS: dict[str, tuple[str, str]] = {
+    "RetrievedChunk": ("schemas", "RetrievedChunk"),
+    "SourceChunk": ("schemas", "SourceChunk"),
+    "SparseHit": ("schemas", "SparseHit"),
+    "HybridCandidates": ("schemas", "HybridCandidates"),
+    "FusedChunk": ("schemas", "FusedChunk"),
+    "SearchChunk": ("schemas", "SearchChunk"),
+    "SearchResult": ("schemas", "SearchResult"),
+    "EmbeddingFingerprint": ("metadata", "EmbeddingFingerprint"),
+    "CorpusTooLargeError": ("sparse", "CorpusTooLargeError"),
+    "get_default_embedder": ("dense", "get_default_embedder"),
+    "search_by_text": ("dense", "search_by_text"),
+    "search_by_vector": ("dense", "search_by_vector"),
+    "search_sparse": ("sparse", "search_sparse"),
+    "search_hybrid_candidates": ("hybrid", "search_hybrid_candidates"),
+    "fuse_rrf": ("fusion", "fuse_rrf"),
+    "search_documents": ("search_documents", "search_documents"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Load a public API item only when it is accessed."""
+    try:
+        module_name, attribute_name = _EXPORTS[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+
+    module = import_module(f".{module_name}", __name__)
+    value = getattr(module, attribute_name)
+    globals()[name] = value
+    return value

@@ -6,6 +6,7 @@ from uuid import UUID
 
 from src.ingestion.persistence.storage import DocumentStorage
 from src.retrieval.bm25 import rank_sparse, tokenize_lexical
+from src.retrieval.config import DEFAULT_CANDIDATE_K
 from src.retrieval.metadata import (
     DEFAULT_EMBEDDING_FINGERPRINT,
     EmbeddingFingerprint,
@@ -44,7 +45,7 @@ def search_sparse(
     question: str,
     board_id: str | UUID,
     *,
-    top_k: int = 20,
+    top_k: int = DEFAULT_CANDIDATE_K,
     max_corpus_chunks: int = 5000,
     fingerprint: EmbeddingFingerprint | None = None,
     storage: DocumentStorage | None = None,
@@ -64,7 +65,7 @@ def search_sparse_with_stats(
     question: str,
     board_id: str | UUID,
     *,
-    top_k: int = 20,
+    top_k: int = DEFAULT_CANDIDATE_K,
     max_corpus_chunks: int = 5000,
     fingerprint: EmbeddingFingerprint | None = None,
     storage: DocumentStorage | None = None,

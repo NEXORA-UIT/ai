@@ -6,24 +6,34 @@ import math
 from collections.abc import Sequence
 
 from src.reranking.cross_encoder import Reranker, get_default_reranker
+from src.retrieval.config import (
+    DEFAULT_SEARCH_TOP_K,
+    MAX_CANDIDATE_K,
+    MAX_SEARCH_TOP_K,
+)
 from src.retrieval.schemas import FusedChunk, RerankedChunk
-
-_MAX_CANDIDATES = 20
-_MAX_TOP_K = 5
 
 
 def _validate_limits(top_k: int, candidate_count: int) -> None:
-    if isinstance(top_k, bool) or not isinstance(top_k, int) or not 1 <= top_k <= 5:
-        raise ValueError("top_k must be an integer from 1 to 5")
-    if candidate_count > _MAX_CANDIDATES:
-        raise ValueError("reranker accepts at most 20 fused candidates")
+    if (
+        isinstance(top_k, bool)
+        or not isinstance(top_k, int)
+        or not 1 <= top_k <= MAX_SEARCH_TOP_K
+    ):
+        raise ValueError(
+            f"top_k must be an integer from 1 to {MAX_SEARCH_TOP_K}"
+        )
+    if candidate_count > MAX_CANDIDATE_K:
+        raise ValueError(
+            f"reranker accepts at most {MAX_CANDIDATE_K} fused candidates"
+        )
 
 
 def rerank_chunks(
     question: str,
     candidates: Sequence[FusedChunk],
     *,
-    top_k: int = 5,
+    top_k: int = DEFAULT_SEARCH_TOP_K,
     reranker: Reranker | None = None,
 ) -> list[RerankedChunk]:
     """Rescore unique fused chunks and return the highest ranked evidence."""

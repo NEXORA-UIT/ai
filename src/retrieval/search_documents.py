@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from src.embedding.embedder import Embedder
 from src.ingestion.persistence.storage import DocumentStorage
 from src.reranking.cross_encoder import Reranker
 from src.reranking.select import rerank_chunks
+from src.retrieval.config import (
+    DEFAULT_CANDIDATE_K,
+    DEFAULT_SEARCH_TOP_K,
+    MAX_CANDIDATE_K,
+    MAX_SEARCH_TOP_K,
+)
 from src.retrieval.fusion import fuse_rrf
 from src.retrieval.hybrid import search_hybrid_candidates
 from src.retrieval.schemas import SearchChunk, SearchResult
 
-_MAX_TOP_K = 5
-_MAX_CANDIDATE_K = 20
+if TYPE_CHECKING:
+    from src.embedding.embedder import Embedder
 
 
 def _validate_inputs(
@@ -28,17 +34,17 @@ def _validate_inputs(
     if (
         isinstance(top_k, bool)
         or not isinstance(top_k, int)
-        or not 1 <= top_k <= _MAX_TOP_K
+        or not 1 <= top_k <= MAX_SEARCH_TOP_K
     ):
-        raise ValueError(f"top_k must be an integer from 1 to {_MAX_TOP_K}")
+        raise ValueError(f"top_k must be an integer from 1 to {MAX_SEARCH_TOP_K}")
     if (
         isinstance(candidate_k, bool)
         or not isinstance(candidate_k, int)
         or top_k > candidate_k
-        or candidate_k > _MAX_CANDIDATE_K
+        or candidate_k > MAX_CANDIDATE_K
     ):
         raise ValueError(
-            f"candidate_k must be an integer from top_k to {_MAX_CANDIDATE_K}"
+            f"candidate_k must be an integer from top_k to {MAX_CANDIDATE_K}"
         )
     return board_uuid
 
@@ -47,8 +53,8 @@ def search_documents(
     question: str,
     board_id: str | UUID,
     *,
-    top_k: int = 5,
-    candidate_k: int = 20,
+    top_k: int = DEFAULT_SEARCH_TOP_K,
+    candidate_k: int = DEFAULT_CANDIDATE_K,
     embedder: Embedder | None = None,
     storage: DocumentStorage | None = None,
     reranker: Reranker | None = None,

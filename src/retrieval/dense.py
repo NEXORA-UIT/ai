@@ -5,18 +5,22 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from functools import lru_cache
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from pgvector import Vector
 
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
-from src.embedding.embedder import BgeM3Embedder, Embedder
 from src.ingestion.persistence.storage import DocumentStorage
+from src.retrieval.config import DEFAULT_SEARCH_TOP_K
 from src.retrieval.metadata import (
     DEFAULT_EMBEDDING_FINGERPRINT,
     EmbeddingFingerprint,
 )
 from src.retrieval.schemas import RetrievedChunk
+
+if TYPE_CHECKING:
+    from src.embedding.embedder import BgeM3Embedder, Embedder
 
 _DENSE_DIMENSION = 1024
 
@@ -53,17 +57,24 @@ def _validate_board_and_limit(board_id: str | UUID, top_k: int) -> UUID:
     return board_uuid
 
 
+def _create_default_embedder() -> BgeM3Embedder:
+    """Construct the default CPU encoder without importing it at startup."""
+    from src.embedding.embedder import BgeM3Embedder
+
+    return BgeM3Embedder()
+
+
 @lru_cache(maxsize=1)
 def get_default_embedder() -> BgeM3Embedder:
     """Return the process-wide lazy BGE-M3 embedder instance."""
-    return BgeM3Embedder()
+    return _create_default_embedder()
 
 
 def search_by_vector(
     query_vector: Sequence[float],
     board_id: str | UUID,
     *,
-    top_k: int = 5,
+    top_k: int = DEFAULT_SEARCH_TOP_K,
     fingerprint: EmbeddingFingerprint | None = None,
     storage: DocumentStorage | None = None,
 ) -> list[RetrievedChunk]:
@@ -148,7 +159,7 @@ def search_by_text(
     question: str,
     board_id: str | UUID,
     *,
-    top_k: int = 5,
+    top_k: int = DEFAULT_SEARCH_TOP_K,
     embedder: Embedder | None = None,
     storage: DocumentStorage | None = None,
 ) -> list[RetrievedChunk]:

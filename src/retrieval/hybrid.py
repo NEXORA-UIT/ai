@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
-from src.embedding.embedder import Embedder
 from src.ingestion.persistence.storage import DocumentStorage
+from src.retrieval.config import DEFAULT_CANDIDATE_K, MAX_CANDIDATE_K
 from src.retrieval.dense import get_default_embedder, search_by_vector
 from src.retrieval.metadata import EmbeddingFingerprint
 from src.retrieval.schemas import HybridCandidates
 from src.retrieval.sparse import search_sparse
 
-_MAX_CANDIDATE_K = 20
+if TYPE_CHECKING:
+    from src.embedding.embedder import Embedder
 
 
 def _validate_inputs(
@@ -27,10 +29,10 @@ def _validate_inputs(
     if (
         isinstance(candidate_k, bool)
         or not isinstance(candidate_k, int)
-        or not 1 <= candidate_k <= _MAX_CANDIDATE_K
+        or not 1 <= candidate_k <= MAX_CANDIDATE_K
     ):
         raise ValueError(
-            f"candidate_k must be an integer from 1 to {_MAX_CANDIDATE_K}"
+            f"candidate_k must be an integer from 1 to {MAX_CANDIDATE_K}"
         )
     return board_uuid
 
@@ -39,7 +41,7 @@ def search_hybrid_candidates(
     question: str,
     board_id: str | UUID,
     *,
-    candidate_k: int = 20,
+    candidate_k: int = DEFAULT_CANDIDATE_K,
     embedder: Embedder | None = None,
     storage: DocumentStorage | None = None,
 ) -> HybridCandidates:

@@ -303,7 +303,7 @@ def test_default_embedder_instance_is_reused(monkeypatch) -> None:
         created.append(embedder)
         return embedder
 
-    monkeypatch.setattr(module, "BgeM3Embedder", new_embedder)
+    monkeypatch.setattr(module, "_create_default_embedder", new_embedder)
 
     try:
         first = get_default_embedder()
