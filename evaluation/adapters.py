@@ -13,7 +13,7 @@ from evaluation.run_retrieval import (
 )
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
 from src.embedding.embedder import Embedder
-from src.ingestion.storage import DocumentStorage
+from src.ingestion.persistence.storage import DocumentStorage
 from src.reranking.cross_encoder import Reranker
 from src.reranking.select import rerank_chunks
 from src.retrieval.dense import get_default_embedder, search_by_vector

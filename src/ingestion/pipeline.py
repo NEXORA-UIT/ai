@@ -5,13 +5,20 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.ingestion.chunker import (
+from src.ingestion.extraction.file_validator import validate_file
+from src.ingestion.extraction.tika_client import (
+    DEFAULT_MAX_FILE_SIZE_BYTES,
+    DEFAULT_TIMEOUT_SECONDS,
+    TikaClient,
+)
+from src.ingestion.persistence.storage import DocumentStorage, sanitize_error_message
+from src.ingestion.processing.chunker import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
     chunk_document,
 )
-from src.ingestion.cleaner import clean_document
-from src.ingestion.file_validator import validate_file
+from src.ingestion.processing.cleaner import clean_document
+from src.ingestion.processing.tokenizer import TokenCounter
 from src.ingestion.schemas import (
     ChunkedDocument,
     CleanedDocument,
@@ -19,13 +26,6 @@ from src.ingestion.schemas import (
     ExtractionResult,
     FileValidationResult,
 )
-from src.ingestion.storage import DocumentStorage, sanitize_error_message
-from src.ingestion.tika_client import (
-    DEFAULT_MAX_FILE_SIZE_BYTES,
-    DEFAULT_TIMEOUT_SECONDS,
-    TikaClient,
-)
-from src.ingestion.tokenizer import TokenCounter
 
 if TYPE_CHECKING:
     from src.embedding.embedder import Embedder

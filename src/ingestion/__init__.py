@@ -1,7 +1,5 @@
 """Ingestion package: extraction, cleaning, and preparation of documents."""
 
-from src.ingestion.chunker import chunk_document
-from src.ingestion.cleaner import clean_document, clean_text, clean_text_fragment
 from src.ingestion.exceptions import (
     BoardMismatchError,
     ChunkingError,
@@ -23,12 +21,26 @@ from src.ingestion.exceptions import (
     TokenizerLoadError,
     UnsupportedFileFormatError,
 )
-from src.ingestion.file_validator import validate_file
+from src.ingestion.extraction.file_validator import validate_file
+from src.ingestion.extraction.tika_client import TikaClient
+from src.ingestion.persistence.storage import (
+    DocumentRecord,
+    DocumentStorage,
+    StoredChunk,
+    StoredDocument,
+    sanitize_error_message,
+)
 from src.ingestion.pipeline import (
     extract_and_clean,
     extract_clean_and_chunk,
     extract_clean_chunk_and_embed,
     ingest_file_to_storage,
+)
+from src.ingestion.processing.chunker import chunk_document
+from src.ingestion.processing.cleaner import (
+    clean_document,
+    clean_text,
+    clean_text_fragment,
 )
 from src.ingestion.schemas import (
     Chunk,
@@ -40,14 +52,6 @@ from src.ingestion.schemas import (
     FileValidationResult,
     PageSpan,
 )
-from src.ingestion.storage import (
-    DocumentRecord,
-    DocumentStorage,
-    StoredChunk,
-    StoredDocument,
-    sanitize_error_message,
-)
-from src.ingestion.tika_client import TikaClient
 
 __all__ = [
     "BoardMismatchError",

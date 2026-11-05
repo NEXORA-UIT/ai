@@ -19,8 +19,8 @@ if sys.platform == "win32":
 
 import psycopg
 
+from src.ingestion.persistence.storage import DocumentStorage
 from src.ingestion.pipeline import ingest_file_to_storage
-from src.ingestion.storage import DocumentStorage
 
 
 def parse_safe_db_info(url: str | None) -> dict[str, Any]:
@@ -51,7 +51,12 @@ def run_bootstrap(db_url: str, confirm_db_name: str) -> int:
         )
         return 1
 
-    sql_path = Path(__file__).parent.parent.parent / "scripts" / "bootstrap_dev_db.sql"
+    sql_path = (
+        Path(__file__).parent.parent.parent
+        / "scripts"
+        / "db"
+        / "bootstrap_dev_db.sql"
+    )
     if not sql_path.exists():
         print(f"ERROR: Bootstrap SQL file not found at {sql_path}", file=sys.stderr)
         return 1

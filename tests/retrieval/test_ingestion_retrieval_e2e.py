@@ -9,8 +9,8 @@ import pytest
 
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
 from src.ingestion.pipeline import ingest_file_to_storage
+from src.ingestion.processing.tokenizer import WhitespaceTokenCounter
 from src.ingestion.schemas import EmbeddedChunk, ExtractionResult
-from src.ingestion.tokenizer import WhitespaceTokenCounter
 from src.retrieval.dense import search_by_text
 
 _QUERY_VECTOR = [1.0, 0.0] + [0.0] * 1022

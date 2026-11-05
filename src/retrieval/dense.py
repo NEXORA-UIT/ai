@@ -11,7 +11,7 @@ from pgvector import Vector
 
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
 from src.embedding.embedder import BgeM3Embedder, Embedder
-from src.ingestion.storage import DocumentStorage
+from src.ingestion.persistence.storage import DocumentStorage
 from src.retrieval.metadata import (
     DEFAULT_EMBEDDING_FINGERPRINT,
     EmbeddingFingerprint,

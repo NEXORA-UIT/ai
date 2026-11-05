@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from src.embedding.embedder import Embedder
-from src.ingestion.storage import DocumentStorage
+from src.ingestion.persistence.storage import DocumentStorage
 from src.reranking.cross_encoder import Reranker
 from src.reranking.select import rerank_chunks
 from src.retrieval.fusion import fuse_rrf

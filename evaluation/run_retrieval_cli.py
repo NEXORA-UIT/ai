@@ -13,7 +13,7 @@ from evaluation.manifest import EvaluationDataset, load_evaluation_dataset
 from evaluation.run_retrieval import run_retrieval
 from evaluation.schemas import DatasetKind
 from src.embedding.embedder import BgeM3Embedder
-from src.ingestion.storage import DocumentStorage
+from src.ingestion.persistence.storage import DocumentStorage
 from src.reranking.cross_encoder import get_default_reranker
 
 

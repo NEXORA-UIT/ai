@@ -12,11 +12,11 @@ import sys
 import time
 from pathlib import Path
 
-from src.ingestion.chunker import chunk_document
 from src.ingestion.exceptions import IngestionError
 from src.ingestion.pipeline import extract_and_clean
+from src.ingestion.processing.chunker import chunk_document
+from src.ingestion.processing.tokenizer import BgeM3Tokenizer, WhitespaceTokenCounter
 from src.ingestion.schemas import EmbeddedDocument
-from src.ingestion.tokenizer import BgeM3Tokenizer, WhitespaceTokenCounter
 
 
 def main() -> int:

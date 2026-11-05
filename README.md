@@ -10,44 +10,64 @@ The AI service for Nexora. **The service currently provides a FastAPI health end
 
 ```text
 config/                         future configuration
-data/system_prompt.md           placeholder; not loaded by the service
+data/system_prompt.md           grounded-answer system instructions
 src/main.py                     FastAPI application and health endpoint
 src/database.py                 read-only PostgreSQL/pgvector probe
 src/worker/                     future worker
-src/ingestion/                  document ingestion pipeline
-src/chunking/                   future text chunking
+src/ingestion/extraction/       file validation and Apache Tika extraction
+src/ingestion/processing/       text cleaning, tokenization, and chunking
+src/ingestion/persistence/      document/chunk persistence in PostgreSQL
+src/ingestion/{pipeline,cli,preview}.py  ingestion workflow and entrypoints
 src/embedding/                  BGE-M3 embedding generation
 src/retrieval/                  Board-scoped dense and hybrid retrieval
 src/reranking/                  cross-encoder result reranking
 src/generation/                 grounded answer generation and citations
-scripts/check_db.py             manual database connectivity check
-evaluation/                     future evaluation suite
-tests/                          health and database probe tests
-docs/rag-architecture.md        agreed future RAG responsibilities and boundaries
+scripts/db/check_db.py          manual database connectivity check
+scripts/db/bootstrap_dev_db.sql local dev/test schema fixture
+scripts/ingestion/run_tika.py   local Apache Tika launcher
+evaluation/                     retrieval and answer evaluation tools
+tests/ingestion/                extraction, processing, persistence, workflow tests
+tests/structure/                repository layout checks
+docs/architecture/              architecture notes
+docs/guides/ingestion/          ingestion guides
+docs/plans/                     implementation plans and design specs
+docs/refactor/                  repository organization plans
 ```
 
 ## Run locally
 
-Requirements: Python 3.12 and [uv](https://docs.astral.sh/uv/). Run these commands from the AI repository root. The health endpoint does not require PostgreSQL or environment variables.
+Requirements: Python 3.12 and pip. Run these commands from the AI repository root. The health endpoint does not require PostgreSQL or environment variables.
 
 ```powershell
-uv sync --locked
-uv run uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install --index-url https://download.pytorch.org/whl/cpu "torch>=2.2,<3"
+python -m pip install -e .
+python -m pip install "pytest>=8,<10" "ruff>=0.9,<1"
+python -m uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 Open `http://127.0.0.1:8000/health`. Run the automated checks with:
 
 ```powershell
-uv run pytest -q
-uv run ruff check .
+python -m pytest -q
+python -m ruff check .
 ```
 
 ## Check PostgreSQL and pgvector
 
-Set `DATABASE_URL` in `.env`, then run:
+Load `.env` into the current PowerShell process, then run the database check:
 
 ```powershell
-uv run --env-file .env python -m scripts.check_db
+Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*([^#=]+?)\s*=\s*(.*)$') {
+        $name = $matches[1].Trim()
+        $value = $matches[2].Trim().Trim('"').Trim("'")
+        Set-Item -Path "Env:$name" -Value $value
+    }
+}
+python -m scripts.db.check_db
 ```
 
 On success, the command prints `PostgreSQL/pgvector check passed (vector <version>).` It only reads the extension version and runs a vector operation. The backend repository owns extension creation and all Prisma migrations.
@@ -73,4 +93,4 @@ Each returned chunk includes document/chunk IDs, source locations, and RRF/reran
 
 ## Service boundary
 
-The [RAG architecture](docs/rag-architecture.md) records the agreed responsibilities for the future AI flows. Express remains the public API and owns authentication, Board authorization, business metadata, and Prisma migrations. Queue names, API contracts, schema details, and response protocols will be agreed when each implementation phase begins.
+The [RAG architecture](docs/architecture/rag-architecture.md) records the agreed responsibilities for the future AI flows. Express remains the public API and owns authentication, Board authorization, business metadata, and Prisma migrations. Queue names, API contracts, schema details, and response protocols will be agreed when each implementation phase begins.

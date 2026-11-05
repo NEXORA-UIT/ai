@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from src.ingestion.storage import DocumentStorage
+from src.ingestion.persistence.storage import DocumentStorage
 from src.retrieval.bm25 import rank_sparse, tokenize_lexical
 from src.retrieval.metadata import (
     DEFAULT_EMBEDDING_FINGERPRINT,

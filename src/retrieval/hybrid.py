@@ -6,7 +6,7 @@ from uuid import UUID
 
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
 from src.embedding.embedder import Embedder
-from src.ingestion.storage import DocumentStorage
+from src.ingestion.persistence.storage import DocumentStorage
 from src.retrieval.dense import get_default_embedder, search_by_vector
 from src.retrieval.metadata import EmbeddingFingerprint
 from src.retrieval.schemas import HybridCandidates
