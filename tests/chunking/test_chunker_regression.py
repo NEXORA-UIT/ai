@@ -2,9 +2,9 @@
 
 import pytest
 
+from src.chunking.chunker import chunk_document
+from src.chunking.tokenizer import WhitespaceTokenCounter
 from src.ingestion.exceptions import ChunkingError
-from src.ingestion.processing.chunker import chunk_document
-from src.ingestion.processing.tokenizer import WhitespaceTokenCounter
 from src.ingestion.schemas import CleanedDocument, PageSpan
 
 

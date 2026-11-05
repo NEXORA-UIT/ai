@@ -2,13 +2,14 @@
 
 from typing import Any
 
+from src.chunking.config import (
+    CHUNKING_VERSION,
+    DEFAULT_CHUNK_OVERLAP,
+    DEFAULT_CHUNK_SIZE,
+)
+from src.chunking.tokenizer import BgeM3Tokenizer, TokenCounter
 from src.ingestion.exceptions import ChunkingError
-from src.ingestion.processing.tokenizer import BgeM3Tokenizer, TokenCounter
 from src.ingestion.schemas import Chunk, ChunkedDocument, CleanedDocument, PageSpan
-
-DEFAULT_CHUNK_SIZE = 512
-DEFAULT_CHUNK_OVERLAP = 64
-CHUNKING_VERSION = "1.0.0"
 
 # Separator priority hierarchy
 SEPARATORS = ["\n\n", "\n", ". ", " "]

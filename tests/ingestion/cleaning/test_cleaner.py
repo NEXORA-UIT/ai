@@ -4,12 +4,12 @@ import unicodedata
 
 import pytest
 
-from src.ingestion.exceptions import EmptyDocumentError
-from src.ingestion.processing.cleaner import (
+from src.ingestion.cleaning.cleaner import (
     clean_document,
     clean_text,
     clean_text_fragment,
 )
+from src.ingestion.exceptions import EmptyDocumentError
 from src.ingestion.schemas import ExtractionResult, PageSpan
 
 

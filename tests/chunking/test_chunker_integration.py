@@ -2,8 +2,8 @@
 
 import pytest
 
-from src.ingestion.processing.chunker import chunk_document
-from src.ingestion.processing.tokenizer import BgeM3Tokenizer
+from src.chunking.chunker import chunk_document
+from src.chunking.tokenizer import BgeM3Tokenizer
 from src.ingestion.schemas import CleanedDocument
 
 

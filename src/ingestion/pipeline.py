@@ -1,10 +1,14 @@
 """High-level Python callable interface for document extraction and cleaning."""
 
+from __future__ import annotations
+
 import hashlib
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from src.chunking.config import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
+from src.ingestion.cleaning.cleaner import clean_document
 from src.ingestion.extraction.file_validator import validate_file
 from src.ingestion.extraction.tika_client import (
     DEFAULT_MAX_FILE_SIZE_BYTES,
@@ -12,13 +16,6 @@ from src.ingestion.extraction.tika_client import (
     TikaClient,
 )
 from src.ingestion.persistence.storage import DocumentStorage, sanitize_error_message
-from src.ingestion.processing.chunker import (
-    DEFAULT_CHUNK_OVERLAP,
-    DEFAULT_CHUNK_SIZE,
-    chunk_document,
-)
-from src.ingestion.processing.cleaner import clean_document
-from src.ingestion.processing.tokenizer import TokenCounter
 from src.ingestion.schemas import (
     ChunkedDocument,
     CleanedDocument,
@@ -28,6 +25,7 @@ from src.ingestion.schemas import (
 )
 
 if TYPE_CHECKING:
+    from src.chunking.tokenizer import TokenCounter
     from src.embedding.embedder import Embedder
 
 
@@ -91,6 +89,8 @@ def extract_clean_and_chunk(
             - CleanedDocument: Cleaned text and metadata.
             - ChunkedDocument: Ordered chunks with verified offsets and token counts.
     """
+    from src.chunking.chunker import chunk_document
+
     extraction, cleaned = extract_and_clean(
         file_path=file_path,
         tika_endpoint=tika_endpoint,
@@ -108,7 +108,7 @@ def extract_clean_and_chunk(
 
 def extract_clean_chunk_and_embed(
     file_path: Path | str,
-    embedder: "Embedder | None" = None,
+    embedder: Embedder | None = None,
     token_counter: TokenCounter | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
@@ -173,7 +173,7 @@ def ingest_file_to_storage(
     storage: DocumentStorage | None = None,
     document_id: str | uuid.UUID | None = None,
     reclaim: bool = False,
-    embedder: "Embedder | None" = None,
+    embedder: Embedder | None = None,
     token_counter: TokenCounter | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,

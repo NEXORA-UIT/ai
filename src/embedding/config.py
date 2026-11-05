@@ -1,6 +1,6 @@
 """Configuration constants for BGE-M3 embedding."""
 
-from src.ingestion.processing.tokenizer import (
+from src.chunking.tokenizer import (
     DEFAULT_BGE_M3_MODEL_ID,
     DEFAULT_BGE_M3_REVISION,
 )

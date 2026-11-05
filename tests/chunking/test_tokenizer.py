@@ -2,14 +2,14 @@
 
 import pytest
 
-from src.ingestion.exceptions import TokenizerLoadError
-from src.ingestion.processing.tokenizer import (
+from src.chunking.tokenizer import (
     DEFAULT_BGE_M3_MODEL_ID,
     DEFAULT_BGE_M3_REVISION,
     BgeM3Tokenizer,
     TokenCounter,
     WhitespaceTokenCounter,
 )
+from src.ingestion.exceptions import TokenizerLoadError
 
 
 def test_whitespace_token_counter():

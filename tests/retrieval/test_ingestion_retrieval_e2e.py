@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
+from src.chunking.tokenizer import WhitespaceTokenCounter
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
 from src.ingestion.pipeline import ingest_file_to_storage
-from src.ingestion.processing.tokenizer import WhitespaceTokenCounter
 from src.ingestion.schemas import EmbeddedChunk, ExtractionResult
 from src.retrieval.dense import search_by_text
 

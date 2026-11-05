@@ -18,7 +18,7 @@ Tài liệu này mô tả kiến trúc, thiết kế và cách vận hành bư�
 
 | Thuộc tính | Giá trị chuẩn | Ghi chú |
 |---|---|---|
-| **Model ID** | `BAAI/bge-m3` | Ghim trong `src/embedding/config.py` và `src/ingestion/processing/tokenizer.py` |
+| **Model ID** | `BAAI/bge-m3` | Ghim trong `src/embedding/config.py` và `src/chunking/tokenizer.py` |
 | **Model Revision** | `5617a9f61b028005a4858fdac845db406aefb181` | Tuyệt đối không dùng `latest` để tránh trôi trọng số |
 | **Thư viện** | `sentence-transformers>=3.4,<7` | Tự động xử lý pooling `[CLS]`, batching và chuẩn hóa L2 |
 | **Kích thước Vector** | `1024` chiều | Khớp với định nghĩa cột vector trong PostgreSQL pgvector |
@@ -112,7 +112,7 @@ python -m src.ingestion.preview --file path/to/document.docx --embed --batch-siz
 - **Unit Tests (Nhanh, dùng Fake Model):**
   Kiểm tra validation logic, token budget, batching, các dạng vector hỏng, và thiết bị không hợp lệ mà không cần GPU hay tải trọng số thật.
   ```bash
-  python -m pytest tests/embedding/test_bge_m3_embedder.py tests/ingestion/processing/test_embedded_schemas.py
+  python -m pytest tests/embedding/test_bge_m3_embedder.py tests/embedding/test_embedded_schemas.py
   ```
 
 - **Integration Tests (Chạy Model BGE-M3 Thật trên CPU):**

@@ -12,22 +12,25 @@ Tổ chức mã ingestion và tài nguyên hỗ trợ theo trách nhiệm, giúp
 - Giữ nguyên luồng trích xuất, làm sạch, chunking, embedding, lưu PostgreSQL và trạng thái `READY`.
 - Giữ các entrypoint `python -m src.ingestion.cli`, `python -m src.ingestion.preview` và API công khai từ `src.ingestion`.
 - Cập nhật mọi import, lệnh chạy và liên kết tài liệu sau khi di chuyển.
+- Xóa `.gitkeep` trong thư mục đã có source; giữ marker ở thư mục chủ đích còn trống.
 - Không sửa schema production, Backend, hoặc hợp đồng RAG.
 - Giữ `notes/` là tài liệu local, không đưa vào commit.
 
 ## Cấu trúc đích
 
 ```text
-src/ingestion/
-├── extraction/       # xác thực file và Apache Tika
-├── processing/       # làm sạch, tokenizer và chunking
-├── persistence/      # DocumentStorage và truy cập PostgreSQL
-├── cli.py            # CLI bootstrap/ingest/inspect, giữ nguyên module path
-├── pipeline.py       # điều phối workflow, giữ nguyên module path
-├── preview.py        # preview local, giữ nguyên module path
-├── exceptions.py     # lỗi dùng chung
-├── schemas.py        # schema dùng chung giữa các bước
-└── __init__.py       # API facade của ingestion
+src/
+├── chunking/         # cấu hình, BGE-M3 tokenizer và chia chunk
+└── ingestion/
+    ├── extraction/   # xác thực file và Apache Tika
+    ├── cleaning/     # chuẩn hóa và làm sạch văn bản
+    ├── persistence/  # DocumentStorage và truy cập PostgreSQL
+    ├── cli.py        # CLI bootstrap/ingest/inspect
+    ├── pipeline.py   # điều phối workflow
+    ├── preview.py    # preview local
+    ├── exceptions.py # lỗi ingestion dùng chung
+    ├── schemas.py    # schema dùng chung giữa các bước
+    └── __init__.py   # giữ API facade ingestion
 
 scripts/
 ├── db/               # check_db.py và bootstrap_dev_db.sql
@@ -35,9 +38,11 @@ scripts/
 
 tests/ingestion/
 ├── extraction/
-├── processing/
+├── cleaning/
 ├── persistence/
 └── workflow/
+
+tests/chunking/       # chunker, tokenizer và chunk schemas
 
 docs/
 ├── architecture/     # tài liệu kiến trúc
@@ -52,7 +57,7 @@ docs/
 
 - Viết kiểm tra cấu trúc yêu cầu các module nằm đúng package mới; xác nhận kiểm tra thất bại vì các path mới chưa có.
 - Chuyển `file_validator.py`, `tika_client.py` vào `extraction/`.
-- Chuyển `cleaner.py`, `chunker.py`, `tokenizer.py` vào `processing/`.
+- Chuyển `cleaner.py` vào `src/ingestion/cleaning/`; chuyển `chunker.py`, `tokenizer.py` vào package top-level `src/chunking/` đã có placeholder.
 - Chuyển `storage.py` vào `persistence/`.
 - Thêm `__init__.py` cho các package mới và giữ API export của `src.ingestion`.
 - Cập nhật imports trong `pipeline.py`, `cli.py`, `preview.py`, `src/embedding`, retrieval, evaluation và tests.
@@ -69,7 +74,7 @@ docs/
 
 ### Task 3 — Sắp xếp tests ingestion
 
-- Nhóm test extraction, processing, persistence và workflow vào subfolder tương ứng.
+- Nhóm test extraction, cleaning, persistence và workflow dưới `tests/ingestion/`; chunking tests dưới `tests/chunking/`; embedded schema test dưới `tests/embedding/`.
 - Giữ fixtures dùng chung tại `tests/ingestion/fixtures.py`.
 - Giữ nguyên tên test và marker; xác nhận pytest vẫn tự tìm toàn bộ test.
 - Chạy `python -m pytest tests/ingestion -q`; commit `refactor(tests): organize ingestion tests by domain`.
@@ -93,13 +98,14 @@ docs/
 
 ## Ghi chú môi trường hiện tại
 
-Baseline `tests/ingestion` chưa collection được: `.venv` đang chạy Python 3.14.2 và import Psycopg lỗi `no pq wrapper available`. Không được diễn giải lỗi baseline này thành regression của refactor. Cần dùng môi trường Python 3.12 có dependencies đúng để xác nhận test trước khi commit code; trong lúc đó có thể chạy kiểm tra cú pháp và đối chiếu đường dẫn tĩnh.
+Host `.venv` đang chạy Python 3.14.2 trong khi project yêu cầu Python 3.12; full pytest dừng ở collection do binary dependencies không tương thích. Docker image Nexora có Python 3.12.16 nhưng chưa cài pytest.
 
 ## Trạng thái thực hiện
 
-- Đã chuyển ingestion modules, scripts, tests, guides, architecture doc và plans/specs theo cấu trúc đích.
-- Đã cập nhật imports, CLI bootstrap path, README và các path trong notes local.
-- `pytest tests/structure`: 4 passed; `ruff check .`: passed; `compileall`: passed.
-- Static scan: 252 local imports resolve; Markdown links và bootstrap DDL path resolve.
-- `pytest -q` hiện dừng ở collection với 26 lỗi môi trường: Psycopg binary không import được và Pydantic Core không tương thích với Python 3.14.2. Các test behavior chưa chạy được.
-- Chưa tạo commit vì toàn bộ suite chưa thể xác nhận trong runtime hiện tại.
+- Commit `8d07b69` đã chứa lần refactor đầu: modules, scripts, tests, docs và README.
+- Review follow-up đưa chunker/tokenizer vào `src/chunking/`, cleaner vào `src/ingestion/cleaning/`, tập trung defaults chunking tại `src/chunking/config.py`, và loại `.gitkeep` khỏi package đã có mã.
+- Test import cycle RED→GREEN; test chunker/facade đạt 10 passed.
+- Python 3.12 container: ingestion + chunking + structure + embedded schema tests đạt 102 passed, 20 deselected (19 integration cần service; một test cần Torch không có trong image).
+- `pytest tests/structure`: 4 passed; `ruff check .`, `compileall`, `git diff --check` đều đạt.
+- Host full pytest vẫn dừng ở collection với 26 lỗi do Python 3.14 và binary dependencies CPython 3.12.
+- E2E thật còn cần khởi chạy riêng PostgreSQL test/demo và Tika; BGE reranker chưa có trong cache.

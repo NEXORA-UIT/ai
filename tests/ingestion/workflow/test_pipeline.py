@@ -115,7 +115,7 @@ class TestPipeline:
         assert "[ERROR]" in captured.err
 
     def test_extract_clean_and_chunk_success(self, tmp_path):
-        from src.ingestion.processing.tokenizer import WhitespaceTokenCounter
+        from src.chunking.tokenizer import WhitespaceTokenCounter
 
         test_file = tmp_path / "chunk_pipeline.txt"
         test_file.write_text("Đoạn một.\n\nĐoạn hai.", encoding="utf-8")

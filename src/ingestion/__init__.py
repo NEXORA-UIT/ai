@@ -1,5 +1,10 @@
 """Ingestion package: extraction, cleaning, and preparation of documents."""
 
+from src.ingestion.cleaning.cleaner import (
+    clean_document,
+    clean_text,
+    clean_text_fragment,
+)
 from src.ingestion.exceptions import (
     BoardMismatchError,
     ChunkingError,
@@ -35,12 +40,6 @@ from src.ingestion.pipeline import (
     extract_clean_and_chunk,
     extract_clean_chunk_and_embed,
     ingest_file_to_storage,
-)
-from src.ingestion.processing.chunker import chunk_document
-from src.ingestion.processing.cleaner import (
-    clean_document,
-    clean_text,
-    clean_text_fragment,
 )
 from src.ingestion.schemas import (
     Chunk,
@@ -97,3 +96,12 @@ __all__ = [
     "sanitize_error_message",
     "validate_file",
 ]
+
+
+def __getattr__(name: str):
+    """Load chunking facade lazily to avoid a package import cycle."""
+    if name == "chunk_document":
+        from src.chunking.chunker import chunk_document
+
+        return chunk_document
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
