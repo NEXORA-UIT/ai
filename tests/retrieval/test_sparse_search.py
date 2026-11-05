@@ -94,7 +94,7 @@ def test_search_sparse_uses_typed_scope_filters_and_maps_database_board_id() -> 
     order = normalized_query.index("order by")
     limit = normalized_query.index("limit")
     conditions = (
-        "d.status = 'ready'",
+        "d.status = %(ready_status)s",
         "d.metadata -> 'model_id' = to_jsonb(%(model_id)s::text)",
         "d.metadata -> 'model_revision' = to_jsonb(%(model_revision)s::text)",
         "d.metadata -> 'dimension' = to_jsonb(%(dimension)s::integer)",
@@ -106,6 +106,7 @@ def test_search_sparse_uses_typed_scope_filters_and_maps_database_board_id() -> 
     assert "dc.embedding" not in normalized_query
     assert "uc-kb-03" not in normalized_query
     assert params["board_id"] == UUID(_BOARD_A)
+    assert params["ready_status"] == "READY"
     assert params["model_id"] == DEFAULT_MODEL_ID
     assert params["model_revision"] == DEFAULT_MODEL_REVISION
     assert params["dimension"] == DEFAULT_DENSE_DIMENSION

@@ -38,6 +38,13 @@ Viết route test trước cho request validation, top-k/candidate-k limits, Boa
 
 **Commit:** `feat(ai-api): expose board-scoped search`
 
+## Follow-up — shared code contracts
+
+- Keep ingestion exports lazy so importing the package does not load psycopg or model runtimes; preserve its existing public exports.
+- Reuse the embedding dimension, one `DocumentStatus` enum, API route paths, and FastAPI HTTP status constants instead of duplicating those values.
+- Bind document lifecycle states as SQL parameters in storage and retrieval queries; keep Board/READY filtering before `LIMIT`.
+- Keep `.gitkeep` only in the genuinely empty `config/` and `src/worker/` directories; populated directories have no marker files.
+
 ## Task 4 — Demo runtime cô lập và hướng dẫn
 
 Thêm Dockerfile/compose chỉ dành cho demo, với PostgreSQL/pgvector và Apache Tika riêng, volume bền vững, không publish port database ra host, và API chỉ bind localhost. API dùng Python 3.12 theo `pyproject.toml`. Cấu hình `AI_SERVICE_API_KEY` qua `.env`, không commit secret. Bổ sung hướng dẫn tiếng Việt: cấu hình, lệnh start/stop, bootstrap schema an toàn, mở Swagger và chạy tuần tự hai flow.

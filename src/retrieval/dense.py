@@ -10,8 +10,14 @@ from uuid import UUID
 
 from pgvector import Vector
 
-from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
+from src.embedding.config import (
+    DEFAULT_DENSE_DIMENSION as _DENSE_DIMENSION,
+)
+from src.embedding.config import (
+    DEFAULT_NORMALIZE_EMBEDDINGS,
+)
 from src.ingestion.persistence.storage import DocumentStorage
+from src.ingestion.status import DocumentStatus
 from src.retrieval.config import DEFAULT_SEARCH_TOP_K
 from src.retrieval.metadata import (
     DEFAULT_EMBEDDING_FINGERPRINT,
@@ -21,9 +27,6 @@ from src.retrieval.schemas import RetrievedChunk
 
 if TYPE_CHECKING:
     from src.embedding.embedder import BgeM3Embedder, Embedder
-
-_DENSE_DIMENSION = 1024
-
 
 def _validate_query_vector(query_vector: Sequence[float]) -> list[float]:
     """Normalize a query vector to floats and reject invalid dense vectors."""
@@ -114,7 +117,7 @@ def search_by_vector(
                     FROM document_chunks AS dc
                     JOIN documents AS d ON d.id = dc.document_id
                     WHERE d.board_id = %(board_id)s
-                      AND d.status = 'READY'
+                      AND d.status = %(ready_status)s
                       AND d.metadata -> 'model_id' = to_jsonb(%(model_id)s::text)
                       AND d.metadata -> 'model_revision' =
                           to_jsonb(%(model_revision)s::text)
@@ -126,6 +129,7 @@ def search_by_vector(
                     {
                         "query_vector": Vector(vector_values),
                         "board_id": board_uuid,
+                        "ready_status": DocumentStatus.READY.value,
                         "model_id": selected_fingerprint.model_id,
                         "model_revision": selected_fingerprint.model_revision,
                         "dimension": selected_fingerprint.dimension,

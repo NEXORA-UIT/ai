@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 import psycopg
 from pgvector.psycopg import register_vector
 
+from src.embedding.config import DEFAULT_DENSE_DIMENSION, L2_NORM_TOLERANCE
 from src.ingestion.exceptions import (
     BoardMismatchError,
     DatabaseConnectionError,
@@ -28,16 +29,13 @@ from src.ingestion.exceptions import (
     StorageError,
     StorageValidationError,
 )
+from src.ingestion.status import DocumentStatus
 
 if TYPE_CHECKING:
     from src.ingestion.schemas import (
         EmbeddedDocument,
         FileValidationResult,
     )
-
-# Vector specifications
-DEFAULT_DENSE_DIMENSION: int = 1024
-L2_NORM_TOLERANCE: float = 1e-4
 
 _URL_PASSWORD_RE = re.compile(
     r"(?P<prefix>(?:postgres(?:ql)?|https?|ftp)://[^:]+:)(?P<pass>[^@]+)(?P<suffix>@)"
@@ -222,7 +220,7 @@ class DocumentStorage:
                         ) VALUES (
                             %(id)s, %(board_id)s, %(uploaded_by)s, %(file_name)s,
                             %(storage_key)s, %(mime_type)s, %(file_size)s,
-                            %(checksum)s, 'PROCESSING', %(token)s, '{}'::jsonb
+                            %(checksum)s, %(status)s, %(token)s, '{}'::jsonb
                         )
                         ON CONFLICT (id) DO NOTHING
                         RETURNING id;
@@ -236,6 +234,7 @@ class DocumentStorage:
                             "mime_type": mime_type,
                             "file_size": file_size,
                             "checksum": checksum,
+                            "status": DocumentStatus.PROCESSING.value,
                             "token": new_token,
                         },
                     )
@@ -268,17 +267,21 @@ class DocumentStorage:
                             f"{existing_board}, cannot claim for board {board_str}."
                         )
 
-                    if existing_status == "PROCESSING" and not reclaim:
+                    if (
+                        existing_status == DocumentStatus.PROCESSING
+                        and not reclaim
+                    ):
                         raise DocumentProcessingConflictError(
                             f"Document {target_id_str} is currently in "
-                            f"PROCESSING status. Pass reclaim=True to take ownership."
+                            f"{DocumentStatus.PROCESSING} status. "
+                            "Pass reclaim=True to take ownership."
                         )
 
                     # Update status to PROCESSING (preserves initial uploaded_by)
                     cur.execute(
                         """
                         UPDATE documents
-                        SET status = 'PROCESSING',
+                        SET status = %(status)s,
                             processing_token = %(token)s,
                             file_name = %(file_name)s,
                             storage_key = %(storage_key)s,
@@ -290,6 +293,7 @@ class DocumentStorage:
                         """,
                         {
                             "id": target_id_str,
+                            "status": DocumentStatus.PROCESSING.value,
                             "token": new_token,
                             "file_name": file_name,
                             "storage_key": storage_key,
@@ -422,10 +426,10 @@ class DocumentStorage:
                     current_status = str(row[1])
                     current_token = str(row[2]) if row[2] else None
 
-                    if current_status != "PROCESSING":
+                    if current_status != DocumentStatus.PROCESSING:
                         raise ProcessingOwnershipLostError(
                             f"Document {doc_id_str} status is {current_status}, "
-                            f"expected PROCESSING."
+                            f"expected {DocumentStatus.PROCESSING}."
                         )
 
                     if current_token != token_str:
@@ -501,7 +505,7 @@ class DocumentStorage:
                     cur.execute(
                         """
                         UPDATE documents
-                        SET status = 'READY',
+                        SET status = %(status)s,
                             processing_token = NULL,
                             file_name = %(file_name)s,
                             storage_key = %(storage_key)s,
@@ -514,6 +518,7 @@ class DocumentStorage:
                         """,
                         {
                             "id": doc_id_str,
+                            "status": DocumentStatus.READY.value,
                             "file_name": file_validation.file_name,
                             "storage_key": storage_key,
                             "mime_type": file_validation.mime_type,
@@ -565,7 +570,10 @@ class DocumentStorage:
                     current_status = str(row[1])
                     current_token = str(row[2]) if row[2] else None
 
-                    if current_status != "PROCESSING" or current_token != token_str:
+                    if (
+                        current_status != DocumentStatus.PROCESSING
+                        or current_token != token_str
+                    ):
                         return False
 
                     existing_meta = dict(row[3] or {})
@@ -579,7 +587,7 @@ class DocumentStorage:
                     cur.execute(
                         """
                         UPDATE documents
-                        SET status = 'FAILED',
+                        SET status = %(status)s,
                             processing_token = NULL,
                             metadata = %(metadata)s::jsonb,
                             updated_at = CURRENT_TIMESTAMP
@@ -587,6 +595,7 @@ class DocumentStorage:
                         """,
                         {
                             "id": doc_id_str,
+                            "status": DocumentStatus.FAILED.value,
                             "metadata": json.dumps(existing_meta),
                         },
                     )

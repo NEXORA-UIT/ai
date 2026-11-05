@@ -11,7 +11,9 @@ from typing import NoReturn
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from src.api.config import (
+    API_V1_PREFIX,
     DEFAULT_UPLOAD_DIRECTORY,
+    DOCUMENTS_ROUTE_PATH,
     MAX_STORED_FILE_NAME_LENGTH,
     UPLOAD_COPY_CHUNK_BYTES,
     UPLOAD_DIRECTORY_ENV,
@@ -33,8 +35,9 @@ from src.ingestion.extraction.file_validator import (
     validate_file,
 )
 from src.ingestion.pipeline import ingest_file_to_storage
+from src.ingestion.status import DocumentStatus
 
-router = APIRouter(prefix="/v1", tags=["Documents"])
+router = APIRouter(prefix=API_V1_PREFIX, tags=["Documents"])
 
 MAX_UPLOAD_SIZE_BYTES = DEFAULT_MAX_FILE_SIZE_BYTES
 _DEFAULT_UPLOAD_FILENAME = "upload.txt"
@@ -128,28 +131,52 @@ def _store_upload(upload: UploadFile, document_id: uuid.UUID) -> Path:
 
 def _raise_ingestion_http_error(exc: Exception) -> NoReturn:
     if isinstance(exc, FileTooLargeError):
-        code, detail = 413, "Uploaded file exceeds the size limit"
+        code, detail = (
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            "Uploaded file exceeds the size limit",
+        )
     elif isinstance(exc, FileEmptyError):
-        code, detail = 422, "Uploaded file is empty"
+        code, detail = (
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Uploaded file is empty",
+        )
     elif isinstance(exc, UnsupportedFileFormatError):
-        code, detail = 415, "Uploaded file format is not supported"
+        code, detail = (
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            "Uploaded file format is not supported",
+        )
     elif isinstance(exc, FileValidationError):
-        code, detail = 422, "Uploaded file failed validation"
+        code, detail = (
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Uploaded file failed validation",
+        )
     elif isinstance(exc, DocumentProcessingConflictError):
-        code, detail = 409, "Document is already being processed"
+        code, detail = (
+            status.HTTP_409_CONFLICT,
+            "Document is already being processed",
+        )
     elif isinstance(exc, DatabaseConnectionError):
-        code, detail = 503, "AI database is unavailable"
+        code, detail = (
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "AI database is unavailable",
+        )
     elif isinstance(exc, TikaError):
-        code, detail = 502, "Document extraction failed"
+        code, detail = (status.HTTP_502_BAD_GATEWAY, "Document extraction failed")
     elif isinstance(exc, IngestionError):
-        code, detail = 422, "Document could not be processed"
+        code, detail = (
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Document could not be processed",
+        )
     else:
-        code, detail = 500, "Document ingestion failed"
+        code, detail = (
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Document ingestion failed",
+        )
     raise HTTPException(status_code=code, detail=detail) from exc
 
 
 @router.post(
-    "/documents",
+    DOCUMENTS_ROUTE_PATH,
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Upload and ingest a document",
@@ -158,14 +185,26 @@ def _raise_ingestion_http_error(exc: Exception) -> NoReturn:
         "The caller must already be authorized for the supplied Board."
     ),
     responses={
-        401: {"description": "Missing or invalid service key"},
-        409: {"description": "Document is already being processed"},
-        413: {"description": "Uploaded file exceeds the configured limit"},
-        415: {"description": "Unsupported or invalid file format"},
-        422: {"description": "Invalid form fields or unreadable document"},
-        500: {"description": "Ingestion failed"},
-        502: {"description": "Document extraction service failed"},
-        503: {"description": "Service API key or database is unavailable"},
+        status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service key"},
+        status.HTTP_409_CONFLICT: {
+            "description": "Document is already being processed"
+        },
+        status.HTTP_413_CONTENT_TOO_LARGE: {
+            "description": "Uploaded file exceeds the configured limit"
+        },
+        status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {
+            "description": "Unsupported or invalid file format"
+        },
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Invalid form fields or unreadable document"
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Ingestion failed"},
+        status.HTTP_502_BAD_GATEWAY: {
+            "description": "Document extraction service failed"
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "description": "Service API key or database is unavailable"
+        },
     },
     dependencies=[Depends(require_service_key)],
 )
@@ -201,7 +240,7 @@ def upload_document(
 
     return DocumentUploadResponse(
         document_id=document_id,
-        status="READY",
+        status=DocumentStatus.READY,
         chunk_count=embedded_document.total_chunks,
         total_tokens=embedded_document.total_tokens,
     )

@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.embedding.config import DEFAULT_DENSE_DIMENSION
+
 
 @dataclass(frozen=True)
 class PageSpan:
@@ -170,16 +172,17 @@ class EmbeddedChunk:
 
     Attributes:
         chunk: The underlying Chunk instance.
-        dense_embedding: Dense vector embedding (1024 float elements, L2 normalized).
+        dense_embedding: Dense vector embedding with the configured dimension,
+            L2 normalized.
     """
 
     chunk: Chunk
     dense_embedding: list[float]
 
     def __post_init__(self) -> None:
-        if len(self.dense_embedding) != 1024:
+        if len(self.dense_embedding) != DEFAULT_DENSE_DIMENSION:
             raise ValueError(
-                f"dense_embedding dimension must be 1024, "
+                f"dense_embedding dimension must be {DEFAULT_DENSE_DIMENSION}, "
                 f"got {len(self.dense_embedding)}"
             )
 
@@ -195,7 +198,7 @@ class EmbeddedDocument:
         chunks: Ordered list of EmbeddedChunk objects.
         model_name: Identifier of the embedding model used.
         model_revision: Revision commit hash of the model.
-        dimension: Embedding dimensionality (default: 1024).
+        dimension: Embedding dimensionality (default: configured BGE-M3 dimension).
         normalized: Whether embeddings are L2 normalized (default: True).
         chunking_version: Semantic version of chunking algorithm used.
         cleaning_version: Semantic version of cleaning algorithm used.
@@ -207,7 +210,7 @@ class EmbeddedDocument:
     chunks: list[EmbeddedChunk]
     model_name: str
     model_revision: str
-    dimension: int = 1024
+    dimension: int = DEFAULT_DENSE_DIMENSION
     normalized: bool = True
     chunking_version: str = "1.0.0"
     cleaning_version: str = "1.0.0"

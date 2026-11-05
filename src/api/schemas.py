@@ -5,11 +5,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from src.ingestion.status import DocumentStatus
+
 
 class DocumentUploadResponse(BaseModel):
     """Summary of a document ingested successfully."""
 
     document_id: UUID
-    status: Literal["READY"]
+    status: Literal[DocumentStatus.READY]
     chunk_count: int = Field(ge=0)
     total_tokens: int = Field(ge=0)

@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from src.api.config import API_V1_PREFIX, SEARCH_ROUTE_PATH
 from src.api.security import require_service_key
 from src.ingestion.exceptions import DatabaseConnectionError
 from src.retrieval.config import (
@@ -18,7 +19,7 @@ from src.retrieval.config import (
 )
 from src.retrieval.schemas import SearchResult
 
-router = APIRouter(prefix="/v1", tags=["Retrieval"])
+router = APIRouter(prefix=API_V1_PREFIX, tags=["Retrieval"])
 
 
 def search_documents(
@@ -106,7 +107,7 @@ class SearchResponse(BaseModel):
 
 
 @router.post(
-    "/search",
+    SEARCH_ROUTE_PATH,
     response_model=SearchResponse,
     summary="Search documents in one Board",
     description=(
@@ -115,10 +116,16 @@ class SearchResponse(BaseModel):
         "authorized for the supplied Board."
     ),
     responses={
-        401: {"description": "Missing or invalid service key"},
-        422: {"description": "Invalid question, Board ID, or result limits"},
-        500: {"description": "Search failed or returned an invalid Board scope"},
-        503: {"description": "AI database is unavailable"},
+        status.HTTP_401_UNAUTHORIZED: {"description": "Missing or invalid service key"},
+        status.HTTP_422_UNPROCESSABLE_CONTENT: {
+            "description": "Invalid question, Board ID, or result limits"
+        },
+        status.HTTP_500_INTERNAL_SERVER_ERROR: {
+            "description": "Search failed or returned an invalid Board scope"
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "description": "AI database is unavailable"
+        },
     },
     dependencies=[Depends(require_service_key)],
 )

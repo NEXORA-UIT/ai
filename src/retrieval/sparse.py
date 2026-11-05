@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from src.ingestion.persistence.storage import DocumentStorage
+from src.ingestion.status import DocumentStatus
 from src.retrieval.bm25 import rank_sparse, tokenize_lexical
 from src.retrieval.config import DEFAULT_CANDIDATE_K
 from src.retrieval.metadata import (
@@ -103,7 +104,7 @@ def search_sparse_with_stats(
                     FROM document_chunks AS dc
                     JOIN documents AS d ON d.id = dc.document_id
                     WHERE d.board_id = %(board_id)s
-                      AND d.status = 'READY'
+                      AND d.status = %(ready_status)s
                       AND d.metadata -> 'model_id' = to_jsonb(%(model_id)s::text)
                       AND d.metadata -> 'model_revision' =
                           to_jsonb(%(model_revision)s::text)
@@ -114,6 +115,7 @@ def search_sparse_with_stats(
                     """,
                     {
                         "board_id": board_uuid,
+                        "ready_status": DocumentStatus.READY.value,
                         "model_id": selected_fingerprint.model_id,
                         "model_revision": selected_fingerprint.model_revision,
                         "dimension": selected_fingerprint.dimension,

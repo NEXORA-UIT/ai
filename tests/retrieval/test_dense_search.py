@@ -100,7 +100,7 @@ def test_search_by_vector_uses_board_ready_cosine_query() -> None:
     order = normalized_query.index("order by")
     limit = normalized_query.index("limit")
     assert "join documents as d on d.id = dc.document_id" in normalized_query
-    assert "d.status = 'ready'" in normalized_query
+    assert "d.status = %(ready_status)s" in normalized_query
     assert "d.metadata -> 'model_id'" in normalized_query
     assert "d.metadata -> 'model_revision'" in normalized_query
     assert "d.metadata -> 'dimension'" in normalized_query
@@ -108,6 +108,7 @@ def test_search_by_vector_uses_board_ready_cosine_query() -> None:
     assert "dc.embedding <=> %(query_vector)s::vector" in normalized_query
     assert where < order < limit
     assert params["board_id"] == UUID(board_id)
+    assert params["ready_status"] == "READY"
     assert params["top_k"] == 1
     assert isinstance(params["query_vector"], Vector)
 
