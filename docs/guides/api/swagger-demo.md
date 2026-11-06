@@ -19,7 +19,7 @@ docker compose -f compose.demo.yml ps
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
-Lần đầu, Docker tải image và build Python 3.12 runtime. PostgreSQL demo được tạo riêng với pgvector; service `schema` tự chạy bootstrap DDL chỉ trên database `nexora_ai_demo`. Tika có thể cần vài giây để sẵn sàng.
+Lần đầu, Docker tải image và build Python 3.12 runtime. PostgreSQL demo được tạo riêng với pgvector; service `schema` tự chạy bootstrap DDL chỉ trên database `nexora_ai_demo`. Chờ đến khi cột `STATUS` của service `api` có `(healthy)` trước khi upload; healthcheck này xác nhận cả FastAPI và Tika `/version` đã sẵn sàng.
 
 Mở `http://127.0.0.1:8000/docs`.
 
