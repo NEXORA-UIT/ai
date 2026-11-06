@@ -20,6 +20,15 @@ from src.embedding.config import (
     DEFAULT_DENSE_DIMENSION,
     DEFAULT_DEVICE,
 )
+from src.ingestion.console_config import (
+    CHUNK_PREVIEW_CHARS,
+    CLEANED_TEXT_PREVIEW_CHARS,
+    CONSOLE_SEPARATOR_WIDTH,
+    EMBEDDED_CHUNK_PREVIEW_CHARS,
+    EMBEDDED_CHUNK_SAMPLE_COUNT,
+    EMBEDDING_PREVIEW_DIMENSIONS,
+    UNKNOWN_METADATA_LABEL,
+)
 from src.ingestion.exceptions import IngestionError
 from src.ingestion.extraction.tika_client import (
     DEFAULT_TIKA_ENDPOINT,
@@ -301,7 +310,8 @@ def main() -> int:
                             sum(x * x for x in ec.dense_embedding) ** 0.5, 6
                         ),
                         "embedding_preview": [
-                            round(x, 4) for x in ec.dense_embedding[:5]
+                            round(x, 4)
+                            for x in ec.dense_embedding[:EMBEDDING_PREVIEW_DIMENSIONS]
                         ],
                         **(
                             {"dense_embedding": ec.dense_embedding}
@@ -317,12 +327,15 @@ def main() -> int:
         print(json.dumps(data, ensure_ascii=False, indent=2))
         return 0
 
-    print("=" * 60)
+    print("=" * CONSOLE_SEPARATOR_WIDTH)
     print("NEXORA DOCUMENT EXTRACTION & CLEANING PREVIEW")
-    print("=" * 60)
+    print("=" * CONSOLE_SEPARATOR_WIDTH)
     print(f"File Name:        {cleaned.file_name}")
     print(f"MIME Type:        {cleaned.mime_type}")
-    print(f"Declared Pages:   {extraction.page_count or 'Unknown'}")
+    print(
+        f"Declared Pages:   "
+        f"{extraction.page_count or UNKNOWN_METADATA_LABEL}"
+    )
     print(f"Form Feed Breaks: {'Yes' if extraction.has_form_feeds else 'No'}")
     print(f"Raw Text Chars:   {len(extraction.raw_text)}")
     print(f"Cleaned Chars:    {cleaned.char_count}")
@@ -348,9 +361,9 @@ def main() -> int:
             if args.whitespace_tokenizer
             else f"BGE-M3 @ {rev[:7] if rev else 'latest'}"
         )
-        print("\n" + "=" * 60)
+        print("\n" + "=" * CONSOLE_SEPARATOR_WIDTH)
         print(f"NEXORA RAG RECURSIVE CHUNKING PREVIEW [{tok_label}]")
-        print("=" * 60)
+        print("=" * CONSOLE_SEPARATOR_WIDTH)
         print(f"Total Chunks:     {chunked.total_chunks}")
         print(
             f"Total Tokens:     {chunked.total_tokens} "
@@ -376,15 +389,15 @@ def main() -> int:
                 f"[Tokens: {c.token_count} | Chars: {c.char_count} | "
                 f"Offsets: {c.start_offset}->{c.end_offset} | Page: {p_str}]"
             )
-            print("-" * 60)
-            print(c.content[:300])
-            if len(c.content) > 300:
+            print("-" * CONSOLE_SEPARATOR_WIDTH)
+            print(c.content[:CHUNK_PREVIEW_CHARS])
+            if len(c.content) > CHUNK_PREVIEW_CHARS:
                 print("...")
 
     if embedded_doc:
-        print("\n" + "=" * 60)
+        print("\n" + "=" * CONSOLE_SEPARATOR_WIDTH)
         print("NEXORA RAG DENSE EMBEDDING PREVIEW [BAAI/bge-m3]")
-        print("=" * 60)
+        print("=" * CONSOLE_SEPARATOR_WIDTH)
         print(f"Total Vectors:     {len(embedded_doc.chunks)}")
         print(f"Vector Dimension:  {embedded_doc.dimension}")
         print(f"L2 Normalized:     {embedded_doc.normalized}")
@@ -399,27 +412,39 @@ def main() -> int:
         )
 
         print("\n--- EMBEDDED CHUNK SAMPLES ---")
-        for ec in embedded_doc.chunks[:3]:
+        for ec in embedded_doc.chunks[:EMBEDDED_CHUNK_SAMPLE_COUNT]:
             c = ec.chunk
             vec = ec.dense_embedding
             p_str = f"Page {c.page_number}" if c.page_number else "None"
-            vec_preview = [round(x, 4) for x in vec[:5]]
+            vec_preview = [
+                round(x, 4) for x in vec[:EMBEDDING_PREVIEW_DIMENSIONS]
+            ]
             norm = sum(x * x for x in vec) ** 0.5
             print(
                 f"\nChunk #{c.chunk_index} "
                 f"[Tokens: {c.token_count} | Page: {p_str} | L2 Norm: {norm:.4f}]"
             )
-            print(f"First 5 Dimensions: {vec_preview} ...")
-            print("-" * 60)
-            print(c.content[:200])
-            if len(c.content) > 200:
+            print(
+                f"First {EMBEDDING_PREVIEW_DIMENSIONS} Dimensions: "
+                f"{vec_preview} ..."
+            )
+            print("-" * CONSOLE_SEPARATOR_WIDTH)
+            print(c.content[:EMBEDDED_CHUNK_PREVIEW_CHARS])
+            if len(c.content) > EMBEDDED_CHUNK_PREVIEW_CHARS:
                 print("...")
-        if len(embedded_doc.chunks) > 3:
-            print(f"\n... and {len(embedded_doc.chunks) - 3} more embedded chunks.")
+        if len(embedded_doc.chunks) > EMBEDDED_CHUNK_SAMPLE_COUNT:
+            print(
+                f"\n... and "
+                f"{len(embedded_doc.chunks) - EMBEDDED_CHUNK_SAMPLE_COUNT} "
+                "more embedded chunks."
+            )
     elif not chunked:
-        print("\n--- CLEANED TEXT PREVIEW (First 500 chars) ---")
-        print(cleaned.cleaned_text[:500])
-        if len(cleaned.cleaned_text) > 500:
+        print(
+            "\n--- CLEANED TEXT PREVIEW "
+            f"(First {CLEANED_TEXT_PREVIEW_CHARS} chars) ---"
+        )
+        print(cleaned.cleaned_text[:CLEANED_TEXT_PREVIEW_CHARS])
+        if len(cleaned.cleaned_text) > CLEANED_TEXT_PREVIEW_CHARS:
             print("...\n--- END OF PREVIEW ---")
 
     if args.raw:

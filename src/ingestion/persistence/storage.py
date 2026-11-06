@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 import psycopg
 from pgvector.psycopg import register_vector
 
+from src.database_config import DATABASE_STORAGE_CONNECT_TIMEOUT_SECONDS
 from src.embedding.config import DEFAULT_DENSE_DIMENSION, L2_NORM_TOLERANCE
 from src.ingestion.exceptions import (
     BoardMismatchError,
@@ -48,9 +49,13 @@ _SQL_STATEMENT_RE = re.compile(
 _SENSITIVE_PARAM_RE = re.compile(
     r"(?i)(password|secret|token|api_key|credential)\s*[:=]\s*['\"]?[^\s'\"]+['\"]?"
 )
+DEFAULT_SANITIZED_ERROR_MESSAGE_MAX_CHARS = 250
 
 
-def sanitize_error_message(message: str | Exception, max_length: int = 250) -> str:
+def sanitize_error_message(
+    message: str | Exception,
+    max_length: int = DEFAULT_SANITIZED_ERROR_MESSAGE_MAX_CHARS,
+) -> str:
     """Sanitize error messages to prevent leaking secrets or raw SQL."""
     if isinstance(message, Exception):
         msg = str(message) or type(message).__name__
@@ -152,7 +157,10 @@ class DocumentStorage:
                 url = self._database_url or os.environ.get("DATABASE_URL")
                 if not url:
                     raise DatabaseConnectionError("DATABASE_URL is not configured.")
-                conn = psycopg.connect(url, connect_timeout=10)
+                conn = psycopg.connect(
+                    url,
+                    connect_timeout=DATABASE_STORAGE_CONNECT_TIMEOUT_SECONDS,
+                )
             if isinstance(conn, psycopg.Connection):
                 register_vector(conn)
             return conn

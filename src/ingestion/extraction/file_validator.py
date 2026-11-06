@@ -11,6 +11,7 @@ from src.ingestion.exceptions import (
 )
 
 DEFAULT_MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB, matching Nexora SRS limit
+FILE_HEADER_BYTES_TO_READ = 16
 
 SUPPORTED_MIME_TYPES = {
     ".pdf": "application/pdf",
@@ -65,7 +66,7 @@ def validate_file(
 
     # Magic byte verification
     with open(path, "rb") as f:
-        header = f.read(16)
+        header = f.read(FILE_HEADER_BYTES_TO_READ)
 
     if suffix == ".pdf":
         if not header.startswith(b"%PDF-"):

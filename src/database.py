@@ -4,6 +4,8 @@ import math
 
 import psycopg
 
+from src.database_config import DATABASE_PROBE_CONNECT_TIMEOUT_SECONDS
+
 
 class MissingVectorExtension(RuntimeError):
     """The vector extension is absent."""
@@ -14,7 +16,10 @@ class VectorOperationError(RuntimeError):
 
 
 def probe_pgvector(database_url: str) -> str:
-    with psycopg.connect(database_url, connect_timeout=5) as connection:
+    with psycopg.connect(
+        database_url,
+        connect_timeout=DATABASE_PROBE_CONNECT_TIMEOUT_SECONDS,
+    ) as connection:
         row = connection.execute(
             "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
         ).fetchone()

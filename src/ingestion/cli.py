@@ -19,6 +19,15 @@ if sys.platform == "win32":
 
 import psycopg
 
+from src.database_config import (
+    DATABASE_BOOTSTRAP_CONNECT_TIMEOUT_SECONDS,
+    DEFAULT_POSTGRES_PORT,
+)
+from src.ingestion.console_config import (
+    CONSOLE_SEPARATOR_WIDTH,
+    STORED_CHUNK_PREVIEW_CHARS,
+    UNKNOWN_METADATA_LABEL,
+)
 from src.ingestion.persistence.storage import DocumentStorage
 from src.ingestion.pipeline import ingest_file_to_storage
 
@@ -32,7 +41,7 @@ def parse_safe_db_info(url: str | None) -> dict[str, Any]:
         return {
             "configured": True,
             "host": parsed.hostname or "localhost",
-            "port": parsed.port or 5432,
+            "port": parsed.port or DEFAULT_POSTGRES_PORT,
             "database": parsed.path.lstrip("/"),
         }
     except Exception:
@@ -67,7 +76,11 @@ def run_bootstrap(db_url: str, confirm_db_name: str) -> int:
     print(f"Running bootstrap DDL on host={host}:{port}, db={actual_db}...")
 
     try:
-        with psycopg.connect(db_url, autocommit=True, connect_timeout=5) as conn:
+        with psycopg.connect(
+            db_url,
+            autocommit=True,
+            connect_timeout=DATABASE_BOOTSTRAP_CONNECT_TIMEOUT_SECONDS,
+        ) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql_content)
         print("SUCCESS: Bootstrap DDL applied successfully.")
@@ -85,9 +98,9 @@ def run_inspect(storage: DocumentStorage, document_id: str) -> int:
         return 1
 
     doc = stored.document
-    print("=" * 60)
+    print("=" * CONSOLE_SEPARATOR_WIDTH)
     print("NEXORA STORED DOCUMENT INSPECTION")
-    print("=" * 60)
+    print("=" * CONSOLE_SEPARATOR_WIDTH)
     print(f"Document ID:      {doc.id}")
     print(f"Board ID:         {doc.board_id}")
     print(f"Uploaded By:      {doc.uploaded_by}")
@@ -100,27 +113,39 @@ def run_inspect(storage: DocumentStorage, document_id: str) -> int:
     print(f"Processing Token: {doc.processing_token or '(None - completed)'}")
     print(f"Created At:       {doc.created_at}")
     print(f"Updated At:       {doc.updated_at}")
-    print("-" * 60)
+    print("-" * CONSOLE_SEPARATOR_WIDTH)
     print(f"Total Chunks:     {len(stored.chunks)}")
-    print(f"Model ID:         {doc.metadata.get('model_id', 'Unknown')}")
-    print(f"Model Revision:   {doc.metadata.get('model_revision', 'Unknown')}")
+    print(
+        f"Model ID:         "
+        f"{doc.metadata.get('model_id', UNKNOWN_METADATA_LABEL)}"
+    )
+    print(
+        f"Model Revision:   "
+        f"{doc.metadata.get('model_revision', UNKNOWN_METADATA_LABEL)}"
+    )
     tokens_desc = (
-        f"{doc.metadata.get('total_tokens', 'Unknown')} "
+        f"{doc.metadata.get('total_tokens', UNKNOWN_METADATA_LABEL)} "
         f"(sum of chunk tokens, incl. overlap)"
     )
     print(f"Total Tokens:     {tokens_desc}")
-    print(f"Chunking Version: {doc.metadata.get('chunking_version', 'Unknown')}")
-    print(f"Cleaning Version: {doc.metadata.get('cleaning_version', 'Unknown')}")
+    print(
+        f"Chunking Version: "
+        f"{doc.metadata.get('chunking_version', UNKNOWN_METADATA_LABEL)}"
+    )
+    print(
+        f"Cleaning Version: "
+        f"{doc.metadata.get('cleaning_version', UNKNOWN_METADATA_LABEL)}"
+    )
 
     if doc.metadata.get("error_stage"):
-        print("-" * 60)
+        print("-" * CONSOLE_SEPARATOR_WIDTH)
         print(f"ERROR STAGE:      {doc.metadata.get('error_stage')}")
         print(f"ERROR TYPE:       {doc.metadata.get('error_type')}")
         print(f"ERROR MESSAGE:    {doc.metadata.get('error_message')}")
         print(f"FAILED AT:        {doc.metadata.get('failed_at')}")
 
     if stored.chunks:
-        print("-" * 60)
+        print("-" * CONSOLE_SEPARATOR_WIDTH)
         print(f"--- SAMPLE CHUNKS (1 of {len(stored.chunks)}) ---")
         first_chunk = stored.chunks[0]
         print(f"Chunk #{first_chunk.chunk_index} [ID: {first_chunk.id}]")
@@ -132,10 +157,12 @@ def run_inspect(storage: DocumentStorage, document_id: str) -> int:
         vec_dim = len(first_chunk.embedding)
         val0 = first_chunk.embedding[0]
         print(f"Vector Dimensions: {vec_dim} floats (preview: [{val0:.4f}, ...])")
-        preview_text = first_chunk.content[:160].replace("\n", " ")
+        preview_text = first_chunk.content[:STORED_CHUNK_PREVIEW_CHARS].replace(
+            "\n", " "
+        )
         print(f"Content Preview: {preview_text}...")
 
-    print("=" * 60)
+    print("=" * CONSOLE_SEPARATOR_WIDTH)
     return 0
 
 
@@ -279,15 +306,15 @@ def main(argv: list[str] | None = None) -> int:
     h = db_info.get("host")
     p = db_info.get("port")
     d = db_info.get("database")
-    print("=" * 60)
+    print("=" * CONSOLE_SEPARATOR_WIDTH)
     print("NEXORA DOCUMENT INGESTION TO DATABASE")
-    print("=" * 60)
+    print("=" * CONSOLE_SEPARATOR_WIDTH)
     print(f"File:             {args.file}")
     print(f"Board ID:         {board_uuid}")
     print(f"Target Doc ID:    {doc_uuid or '(New document)'}")
     print(f"Database Target:  host={h}:{p}, db={d}")
     print(f"Reclaim Mode:     {args.reclaim}")
-    print("-" * 60)
+    print("-" * CONSOLE_SEPARATOR_WIDTH)
 
     start_time = time.perf_counter()
     try:
@@ -308,14 +335,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Model Revision:   {embedded_doc.model_revision}")
         print(f"Vector Dimension: {embedded_doc.dimension}")
         print(f"Elapsed Time:     {total_time:.2f}s")
-        print("=" * 60)
+        print("=" * CONSOLE_SEPARATOR_WIDTH)
         return 0
     except Exception as exc:
         total_time = time.perf_counter() - start_time
         print(f"STATUS:           FAILED ({type(exc).__name__})", file=sys.stderr)
         print(f"Error Details:    {exc}", file=sys.stderr)
         print(f"Elapsed Time:     {total_time:.2f}s", file=sys.stderr)
-        print("=" * 60, file=sys.stderr)
+        print("=" * CONSOLE_SEPARATOR_WIDTH, file=sys.stderr)
         return 1
 
 

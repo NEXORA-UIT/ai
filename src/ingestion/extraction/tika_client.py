@@ -1,6 +1,7 @@
 """HTTP client for Apache Tika Server extraction."""
 
 import os
+from http import HTTPStatus
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,7 @@ from src.ingestion.schemas import ExtractionResult
 
 DEFAULT_TIKA_ENDPOINT = "http://127.0.0.1:9998"
 DEFAULT_TIMEOUT_SECONDS = 30.0
+ERROR_RESPONSE_PREVIEW_CHARS = 200
 
 
 class TikaClient:
@@ -106,13 +108,14 @@ class TikaClient:
                 res = client.put(url, content=content, headers=headers)
 
                 # Fallback to /tika and /meta if /rmeta/text returns 404
-                if res.status_code == 404:
+                if res.status_code == HTTPStatus.NOT_FOUND:
                     return self._extract_fallback(client, content, file_name, mime_type)
 
-                if res.status_code != 200:
+                if res.status_code != HTTPStatus.OK:
                     raise TikaExtractionError(
                         f"Tika extraction failed for '{file_name}' with HTTP "
-                        f"{res.status_code}: {res.text[:200]}"
+                        f"{res.status_code}: "
+                        f"{res.text[:ERROR_RESPONSE_PREVIEW_CHARS]}"
                     )
 
                 try:
@@ -161,16 +164,17 @@ class TikaClient:
         }
 
         res_text = client.put(text_url, content=content, headers=text_headers)
-        if res_text.status_code != 200:
+        if res_text.status_code != HTTPStatus.OK:
             raise TikaExtractionError(
                 f"Tika text extraction failed for '{file_name}' with HTTP "
-                f"{res_text.status_code}: {res_text.text[:200]}"
+                f"{res_text.status_code}: "
+                f"{res_text.text[:ERROR_RESPONSE_PREVIEW_CHARS]}"
             )
         raw_text = res_text.text
 
         metadata: dict[str, Any] = {}
         res_meta = client.put(meta_url, content=content, headers=meta_headers)
-        if res_meta.status_code == 200:
+        if res_meta.status_code == HTTPStatus.OK:
             try:
                 meta_json = res_meta.json()
                 if isinstance(meta_json, dict):
