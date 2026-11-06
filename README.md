@@ -4,14 +4,15 @@
 
 ![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white) ![FastAPI foundation](https://img.shields.io/badge/FastAPI-foundation-009688?style=for-the-badge&logo=fastapi&logoColor=white) ![Phase 0 foundation](https://img.shields.io/badge/Phase-0%20foundation-6D5DFB?style=for-the-badge)
 
-The AI service for Nexora. **The service currently provides a FastAPI health endpoint and a read-only PostgreSQL/pgvector connectivity check.** Standalone document ingestion and Board-scoped hybrid retrieval, RRF fusion, reranking, and grounded-answer components are available as Python modules; they are not exposed through FastAPI or connected to a worker yet.
+The AI service for Nexora. FastAPI provides a health endpoint and internal Swagger routes for synchronous document ingestion and Board-scoped search. Retrieval combines dense and BM25 candidates, RRF fusion, and cross-encoder reranking. Express remains the public API and owns user authentication and Board authorization.
 
 ## Repository map
 
 ```text
 config/                         future configuration
 data/system_prompt.md           grounded-answer system instructions
-src/main.py                     FastAPI application and health endpoint
+src/main.py                     FastAPI application entrypoint
+src/api/                         service-key auth, Swagger routes and payloads
 src/database.py                 read-only PostgreSQL/pgvector probe
 src/worker/                     future worker
 src/ingestion/extraction/       file validation and Apache Tika extraction
@@ -36,7 +37,19 @@ docs/plans/                     implementation plans and design specs
 docs/refactor/                  repository organization plans
 ```
 
-## Run locally
+## Run the Swagger demo
+
+The self-contained demo uses an isolated PostgreSQL/pgvector database and Apache Tika. It does not connect to or modify the Nexora backend database.
+
+Follow [the Vietnamese Swagger demo guide](docs/guides/api/swagger-demo.md). The short start command is:
+
+```powershell
+docker compose -f compose.demo.yml up --build -d
+```
+
+Then open `http://127.0.0.1:8000/docs` and run the upload and search flows.
+
+## Run the health endpoint with local Python
 
 Requirements: Python 3.12 and pip. Run these commands from the AI repository root. The health endpoint does not require PostgreSQL or environment variables.
 
@@ -50,7 +63,7 @@ python -m pip install "pytest>=8,<10" "ruff>=0.9,<1"
 python -m uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Open `http://127.0.0.1:8000/health`. Run the automated checks with:
+Open `http://127.0.0.1:8000/health`. The authenticated upload and search routes also appear in `/docs` when `AI_SERVICE_API_KEY` is configured. Run the automated checks with:
 
 ```powershell
 python -m pytest -q
@@ -95,4 +108,4 @@ Each returned chunk includes document/chunk IDs, source locations, and RRF/reran
 
 ## Service boundary
 
-The [RAG architecture](docs/architecture/rag-architecture.md) records the agreed responsibilities for the future AI flows. Express remains the public API and owns authentication, Board authorization, business metadata, and Prisma migrations. Queue names, API contracts, schema details, and response protocols will be agreed when each implementation phase begins.
+The [RAG architecture](docs/architecture/rag-architecture.md) records the responsibilities of each service. The Swagger routes are an internal demo boundary: Express must authenticate callers and authorize Board access before passing a Board ID to AI. Production storage and database migrations remain owned by the backend.
