@@ -16,6 +16,11 @@ from src.retrieval.metadata import (
     EmbeddingFingerprint,
 )
 from src.retrieval.schemas import SourceChunk, SparseHit, SparseSearchResult
+from src.validation import (
+    BOARD_ID_INVALID_UUID,
+    QUESTION_TEXT_REQUIRED,
+    TOP_K_POSITIVE_INTEGER_REQUIRED,
+)
 
 
 class CorpusTooLargeError(RuntimeError):
@@ -29,13 +34,13 @@ def _validate_inputs(
     max_corpus_chunks: int,
 ) -> tuple[UUID, list[str]]:
     if not isinstance(question, str) or not question.strip():
-        raise ValueError("question must contain non-whitespace text")
+        raise ValueError(QUESTION_TEXT_REQUIRED)
     try:
         board_uuid = UUID(str(board_id))
     except (TypeError, ValueError, AttributeError) as exc:
-        raise ValueError("board_id must be a valid UUID") from exc
+        raise ValueError(BOARD_ID_INVALID_UUID) from exc
     if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 1:
-        raise ValueError("top_k must be a positive integer")
+        raise ValueError(TOP_K_POSITIVE_INTEGER_REQUIRED)
     if (
         isinstance(max_corpus_chunks, bool)
         or not isinstance(max_corpus_chunks, int)

@@ -11,6 +11,7 @@ from rank_bm25 import BM25Okapi
 
 from src.retrieval.config import DEFAULT_CANDIDATE_K
 from src.retrieval.schemas import SourceChunk, SparseHit
+from src.validation import TOP_K_POSITIVE_INTEGER_REQUIRED
 
 _TOKEN_PATTERN = re.compile(r"[\w]+(?:-[\w]+)+|[\w]+", re.UNICODE)
 _WORD_PATTERN = re.compile(r"[\w]+", re.UNICODE)
@@ -35,7 +36,7 @@ def tokenize_lexical(text: str) -> list[str]:
 
 def _validate_top_k(top_k: int) -> None:
     if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 1:
-        raise ValueError("top_k must be a positive integer")
+        raise ValueError(TOP_K_POSITIVE_INTEGER_REQUIRED)
 
 
 def rank_sparse(

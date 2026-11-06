@@ -17,6 +17,7 @@ from src.retrieval.config import (
 from src.retrieval.fusion import fuse_rrf
 from src.retrieval.hybrid import search_hybrid_candidates
 from src.retrieval.schemas import SearchChunk, SearchResult
+from src.validation import BOARD_ID_INVALID_UUID, QUESTION_TEXT_REQUIRED
 
 if TYPE_CHECKING:
     from src.embedding.embedder import Embedder
@@ -26,11 +27,11 @@ def _validate_inputs(
     question: str, board_id: str | UUID, top_k: int, candidate_k: int
 ) -> UUID:
     if not isinstance(question, str) or not question.strip():
-        raise ValueError("question must contain non-whitespace text")
+        raise ValueError(QUESTION_TEXT_REQUIRED)
     try:
         board_uuid = UUID(str(board_id))
     except (TypeError, ValueError, AttributeError) as exc:
-        raise ValueError("board_id must be a valid UUID") from exc
+        raise ValueError(BOARD_ID_INVALID_UUID) from exc
     if (
         isinstance(top_k, bool)
         or not isinstance(top_k, int)

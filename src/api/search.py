@@ -8,7 +8,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.api.config import API_V1_PREFIX, SEARCH_ROUTE_PATH
+from src.api.config import (
+    API_V1_PREFIX,
+    DATABASE_UNAVAILABLE_DETAIL,
+    SEARCH_ROUTE_PATH,
+)
 from src.api.security import require_service_key
 from src.ingestion.exceptions import DatabaseConnectionError
 from src.retrieval.config import (
@@ -18,6 +22,7 @@ from src.retrieval.config import (
     MAX_SEARCH_TOP_K,
 )
 from src.retrieval.schemas import SearchResult
+from src.validation import QUESTION_TEXT_REQUIRED
 
 router = APIRouter(prefix=API_V1_PREFIX, tags=["Retrieval"])
 
@@ -73,7 +78,7 @@ class SearchRequest(BaseModel):
     @classmethod
     def question_must_contain_text(cls, value: str) -> str:
         if not value.strip():
-            raise ValueError("question must contain non-whitespace text")
+            raise ValueError(QUESTION_TEXT_REQUIRED)
         return value
 
     @model_validator(mode="after")
@@ -124,7 +129,7 @@ class SearchResponse(BaseModel):
             "description": "Search failed or returned an invalid Board scope"
         },
         status.HTTP_503_SERVICE_UNAVAILABLE: {
-            "description": "AI database is unavailable"
+            "description": DATABASE_UNAVAILABLE_DETAIL
         },
     },
     dependencies=[Depends(require_service_key)],
@@ -141,7 +146,7 @@ def search_board_documents(request: SearchRequest) -> SearchResponse:
     except DatabaseConnectionError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI database is unavailable",
+            detail=DATABASE_UNAVAILABLE_DETAIL,
         ) from exc
     except Exception as exc:
         raise HTTPException(

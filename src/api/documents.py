@@ -12,11 +12,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 
 from src.api.config import (
     API_V1_PREFIX,
+    DATABASE_UNAVAILABLE_DETAIL,
     DEFAULT_UPLOAD_DIRECTORY,
     DOCUMENTS_ROUTE_PATH,
     MAX_STORED_FILE_NAME_LENGTH,
     UPLOAD_COPY_CHUNK_BYTES,
     UPLOAD_DIRECTORY_ENV,
+    UPLOAD_FILE_TOO_LARGE_DETAIL,
 )
 from src.api.schemas import DocumentUploadResponse
 from src.api.security import require_service_key
@@ -74,7 +76,7 @@ def _validate_upload(path: Path) -> None:
     except FileTooLargeError as exc:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail="Uploaded file exceeds the size limit",
+            detail=UPLOAD_FILE_TOO_LARGE_DETAIL,
         ) from exc
     except FileEmptyError as exc:
         raise HTTPException(
@@ -104,7 +106,7 @@ def _copy_upload(upload: UploadFile, staging_path: Path) -> None:
             if total_bytes > MAX_UPLOAD_SIZE_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                    detail="Uploaded file exceeds the size limit",
+                    detail=UPLOAD_FILE_TOO_LARGE_DETAIL,
                 )
             destination.write(chunk)
 
@@ -133,7 +135,7 @@ def _raise_ingestion_http_error(exc: Exception) -> NoReturn:
     if isinstance(exc, FileTooLargeError):
         code, detail = (
             status.HTTP_413_CONTENT_TOO_LARGE,
-            "Uploaded file exceeds the size limit",
+            UPLOAD_FILE_TOO_LARGE_DETAIL,
         )
     elif isinstance(exc, FileEmptyError):
         code, detail = (
@@ -158,7 +160,7 @@ def _raise_ingestion_http_error(exc: Exception) -> NoReturn:
     elif isinstance(exc, DatabaseConnectionError):
         code, detail = (
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "AI database is unavailable",
+            DATABASE_UNAVAILABLE_DETAIL,
         )
     elif isinstance(exc, TikaError):
         code, detail = (status.HTTP_502_BAD_GATEWAY, "Document extraction failed")

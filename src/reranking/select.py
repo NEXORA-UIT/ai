@@ -12,6 +12,7 @@ from src.retrieval.config import (
     MAX_SEARCH_TOP_K,
 )
 from src.retrieval.schemas import FusedChunk, RerankedChunk
+from src.validation import QUESTION_TEXT_REQUIRED
 
 
 def _validate_limits(top_k: int, candidate_count: int) -> None:
@@ -38,7 +39,7 @@ def rerank_chunks(
 ) -> list[RerankedChunk]:
     """Rescore unique fused chunks and return the highest ranked evidence."""
     if not isinstance(question, str) or not question.strip():
-        raise ValueError("question must contain non-whitespace text")
+        raise ValueError(QUESTION_TEXT_REQUIRED)
     _validate_limits(top_k, len(candidates))
 
     unique_candidates: list[FusedChunk] = []

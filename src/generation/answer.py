@@ -9,6 +9,7 @@ from src.generation.config import DEFAULT_CONTEXT_CHAR_LIMIT
 from src.generation.context import build_grounded_prompt
 from src.generation.schemas import AnswerClient, AnswerResult, Citation
 from src.retrieval.schemas import RerankedChunk
+from src.validation import BOARD_ID_INVALID_UUID, QUESTION_TEXT_REQUIRED
 
 _REFUSAL_TEXT = "I cannot answer this question from the available sources."
 
@@ -29,7 +30,7 @@ def _normalize_board_id(board_id: str | UUID) -> UUID:
     try:
         return UUID(str(board_id))
     except (TypeError, ValueError, AttributeError) as exc:
-        raise ValueError("board_id must be a valid UUID") from exc
+        raise ValueError(BOARD_ID_INVALID_UUID) from exc
 
 
 def _validate_context_budget(max_context_chars: int) -> None:
@@ -88,7 +89,7 @@ def answer_with_sources(
 ) -> AnswerResult:
     """Answer from supplied scoped evidence, refusing invalid or absent sources."""
     if not isinstance(question, str) or not question.strip():
-        raise ValueError("question must contain non-whitespace text")
+        raise ValueError(QUESTION_TEXT_REQUIRED)
     board_uuid = _normalize_board_id(board_id)
     _validate_context_budget(max_context_chars)
 

@@ -13,6 +13,7 @@ from src.reranking.config import (
     DEFAULT_RERANKER_MODEL_ID,
     DEFAULT_RERANKER_MODEL_REVISION,
 )
+from src.validation import QUESTION_TEXT_REQUIRED
 
 
 class Reranker(Protocol):
@@ -91,7 +92,7 @@ class BgeReranker:
     def score_pairs(self, question: str, passages: Sequence[str]) -> list[float]:
         """Score each question/passage pair without normalizing model outputs."""
         if not isinstance(question, str) or not question.strip():
-            raise ValueError("question must contain non-whitespace text")
+            raise ValueError(QUESTION_TEXT_REQUIRED)
         try:
             passage_list = list(passages)
         except TypeError as exc:
