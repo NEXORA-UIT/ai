@@ -7,10 +7,9 @@ from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
 
+from src.generation.config import DEFAULT_CONTEXT_CHAR_LIMIT
 from src.generation.schemas import GroundedPrompt
 from src.retrieval.schemas import RerankedChunk
-
-_DEFAULT_CONTEXT_CHARS = 12000
 
 
 @lru_cache(maxsize=1)
@@ -35,7 +34,7 @@ def build_grounded_prompt(
     question: str,
     chunks: Sequence[RerankedChunk],
     *,
-    max_context_chars: int = _DEFAULT_CONTEXT_CHARS,
+    max_context_chars: int = DEFAULT_CONTEXT_CHAR_LIMIT,
 ) -> tuple[GroundedPrompt, tuple[RerankedChunk, ...]]:
     """Keep whole chunks in ranked order while enforcing a character budget."""
     if isinstance(max_context_chars, bool) or not isinstance(max_context_chars, int):

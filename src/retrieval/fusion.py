@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from src.retrieval.config import DEFAULT_RRF_K
 from src.retrieval.schemas import (
     FusedChunk,
     HybridCandidates,
@@ -44,7 +45,7 @@ def _source_for_channel(
 def fuse_rrf(
     candidates: HybridCandidates,
     *,
-    rrf_k: int = 60,
+    rrf_k: int = DEFAULT_RRF_K,
     top_k: int | None = None,
 ) -> list[FusedChunk]:
     """Fuse one-based channel ranks, deduplicated by chunk ID."""

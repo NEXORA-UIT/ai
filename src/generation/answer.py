@@ -5,12 +5,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from uuid import UUID
 
+from src.generation.config import DEFAULT_CONTEXT_CHAR_LIMIT
 from src.generation.context import build_grounded_prompt
 from src.generation.schemas import AnswerClient, AnswerResult, Citation
 from src.retrieval.schemas import RerankedChunk
 
 _REFUSAL_TEXT = "I cannot answer this question from the available sources."
-_DEFAULT_CONTEXT_CHARS = 12000
 
 
 class EvidenceScopeError(ValueError):
@@ -84,7 +84,7 @@ def answer_with_sources(
     chunks: Sequence[RerankedChunk],
     *,
     client: AnswerClient,
-    max_context_chars: int = _DEFAULT_CONTEXT_CHARS,
+    max_context_chars: int = DEFAULT_CONTEXT_CHAR_LIMIT,
 ) -> AnswerResult:
     """Answer from supplied scoped evidence, refusing invalid or absent sources."""
     if not isinstance(question, str) or not question.strip():

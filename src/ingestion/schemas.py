@@ -3,7 +3,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.chunking.config import CHUNKING_VERSION
 from src.embedding.config import DEFAULT_DENSE_DIMENSION
+from src.ingestion.config import DEFAULT_CLEANING_VERSION
 
 
 @dataclass(frozen=True)
@@ -90,7 +92,7 @@ class CleanedDocument:
     file_name: str
     mime_type: str
     metadata: dict[str, Any] = field(default_factory=dict)
-    cleaning_version: str = "1.0.0"
+    cleaning_version: str = DEFAULT_CLEANING_VERSION
     page_spans: list[PageSpan] | None = None
     char_count: int = field(init=False)
     line_count: int = field(init=False)
@@ -162,7 +164,7 @@ class ChunkedDocument:
     total_chunks: int
     total_tokens: int
     chunks: list[Chunk]
-    chunking_version: str = "1.0.0"
+    chunking_version: str = CHUNKING_VERSION
     config: dict[str, Any] = field(default_factory=dict)
 
 
@@ -212,5 +214,5 @@ class EmbeddedDocument:
     model_revision: str
     dimension: int = DEFAULT_DENSE_DIMENSION
     normalized: bool = True
-    chunking_version: str = "1.0.0"
-    cleaning_version: str = "1.0.0"
+    chunking_version: str = CHUNKING_VERSION
+    cleaning_version: str = DEFAULT_CLEANING_VERSION

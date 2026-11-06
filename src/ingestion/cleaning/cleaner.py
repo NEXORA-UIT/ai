@@ -3,10 +3,11 @@
 import re
 import unicodedata
 
+from src.ingestion.config import DEFAULT_CLEANING_VERSION
 from src.ingestion.exceptions import EmptyDocumentError
 from src.ingestion.schemas import CleanedDocument, ExtractionResult, PageSpan
 
-CLEANING_VERSION = "1.0.0"
+CLEANING_VERSION = DEFAULT_CLEANING_VERSION
 
 
 def clean_text_fragment(text: str) -> str:

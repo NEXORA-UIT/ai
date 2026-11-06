@@ -13,8 +13,18 @@ import time
 from pathlib import Path
 
 from src.chunking.chunker import chunk_document
+from src.chunking.config import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from src.chunking.tokenizer import BgeM3Tokenizer, WhitespaceTokenCounter
+from src.embedding.config import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_DENSE_DIMENSION,
+    DEFAULT_DEVICE,
+)
 from src.ingestion.exceptions import IngestionError
+from src.ingestion.extraction.tika_client import (
+    DEFAULT_TIKA_ENDPOINT,
+    DEFAULT_TIMEOUT_SECONDS,
+)
 from src.ingestion.pipeline import extract_and_clean
 from src.ingestion.schemas import EmbeddedDocument
 
@@ -40,13 +50,13 @@ def main() -> int:
         "--endpoint",
         "-e",
         default=None,
-        help="Tika server endpoint (default: http://127.0.0.1:9998)",
+        help=f"Tika server endpoint (default: {DEFAULT_TIKA_ENDPOINT})",
     )
     parser.add_argument(
         "--timeout",
         type=float,
-        default=30.0,
-        help="HTTP request timeout in seconds (default: 30.0)",
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help=f"HTTP request timeout in seconds (default: {DEFAULT_TIMEOUT_SECONDS})",
     )
     parser.add_argument(
         "--json",
@@ -66,14 +76,17 @@ def main() -> int:
     parser.add_argument(
         "--chunk-size",
         type=int,
-        default=512,
-        help="Chunk size limit in tokens (default: 512 content tokens)",
+        default=DEFAULT_CHUNK_SIZE,
+        help=(
+            "Chunk size limit in tokens "
+            f"(default: {DEFAULT_CHUNK_SIZE} content tokens)"
+        ),
     )
     parser.add_argument(
         "--chunk-overlap",
         type=int,
-        default=64,
-        help="Target chunk overlap in tokens (default: 64 tokens)",
+        default=DEFAULT_CHUNK_OVERLAP,
+        help=f"Target chunk overlap in tokens (default: {DEFAULT_CHUNK_OVERLAP})",
     )
     parser.add_argument(
         "--whitespace-tokenizer",
@@ -90,20 +103,24 @@ def main() -> int:
     )
     parser.add_argument(
         "--device",
-        choices=["cpu", "cuda"],
-        default="cpu",
+        choices=[DEFAULT_DEVICE, "cuda"],
+        default=DEFAULT_DEVICE,
         help="Device for embedding inference (default: cpu)",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=8,
-        help="Inference batch size for embedding (default: 8)",
+        default=DEFAULT_BATCH_SIZE,
+        help=f"Inference batch size for embedding (default: {DEFAULT_BATCH_SIZE})",
     )
     parser.add_argument(
         "--export-vectors",
         action="store_true",
-        help="Include complete 1024-d vectors in JSON output (default: excluded)",
+        help=(
+            "Include complete "
+            f"{DEFAULT_DENSE_DIMENSION}-d vectors in JSON output "
+            "(default: excluded)"
+        ),
     )
 
     args = parser.parse_args()
