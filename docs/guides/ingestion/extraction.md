@@ -4,6 +4,14 @@ Tài liệu này mô tả chi tiết cách thức hoạt động, cấu hình v�
 
 ---
 
+## Chạy Tika bằng Docker
+
+Từ thư mục gốc repo AI, chạy `docker compose up -d tika` để dùng Tika với
+các lệnh Python local. Kiểm tra `http://127.0.0.1:9998/version` và trỏ
+`TIKA_SERVER_ENDPOINT` tới cổng đã publish. Nếu đặt `AI_TIKA_PORT` khác
+9998, dùng cổng đó trong URL local. Stack Swagger tự kết nối tới Tika qua
+mạng Docker. Phần Java bên dưới dành cho chạy trực tiếp trên máy.
+
 ## 1. Luồng Xử Lý (Workflow)
 
 ```text

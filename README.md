@@ -23,7 +23,7 @@ scripts/db/                       Connectivity check and confirmed dev schema bo
 scripts/ingestion/                Ingest, inspect, preview and launch local Tika
 evaluation/                     retrieval and answer evaluation tools
 tests/ingestion/                extraction, cleaning, persistence, workflow tests
-tests/chunking/                 chunker and tokenizer tests
+tests/ingestion/chunking/        chunker and tokenizer tests
 tests/structure/                CLI entrypoint checks
 docs/architecture/              architecture notes
 docs/guides/ingestion/          ingestion guides
@@ -33,8 +33,19 @@ docs/refactor/                  repository organization plans
 
 ## Run the Swagger demo
 
-Follow the [Vietnamese Swagger demo guide](docs/guides/api/swagger-demo.md)
-to connect local Uvicorn to a dedicated PostgreSQL/pgvector database and Tika.
+Set `AI_SERVICE_API_KEY` and `DEEPSEEK_API_KEY` in `.env`, then run:
+
+```powershell
+docker compose up -d --build --wait --wait-timeout 900
+```
+
+Once the images are built, use `docker compose up -d --no-build --pull never --wait --wait-timeout 900`
+to start with the local images. Rebuild after changing the API source or its dependencies.
+
+Open [Swagger](http://127.0.0.1:8000/docs) and follow the
+[Vietnamese demo guide](docs/guides/api/swagger-demo.md). Compose runs the API,
+Tika and a dedicated PostgreSQL/pgvector database. It keeps model weights,
+uploads and database data in Docker volumes.
 
 ## Run the health endpoint with local Python
 

@@ -1,32 +1,38 @@
-# Chạy demo Ingestion và Retrieval qua Swagger
+# Chạy demo RAG qua Swagger
 
-Chạy FastAPI với Uvicorn trên máy local. Dùng một database demo riêng có
-pgvector và một Apache Tika server.
+Docker Compose chạy FastAPI, Apache Tika và PostgreSQL có pgvector. Service
+schema tự chuẩn bị database demo trước khi API khởi động.
 
 ## 1. Chuẩn bị
 
-- Cài uv, chạy `uv python install` và `uv sync --locked`.
-- Tạo `.env` từ `.env.example` nếu repo chưa có file `.env`.
-- Đặt `AI_SERVICE_API_KEY` thành một chuỗi ngẫu nhiên dài. `.env` đã được Git ignore.
-- Đặt `DATABASE_URL` trỏ tới database demo `nexora_ai_demo`.
-- Khởi động Tika theo [hướng dẫn Tika](../ingestion/extraction.md) và đặt
-  `TIKA_SERVER_ENDPOINT` tương ứng.
-- Nếu muốn chọn thư mục cache model, đặt `HF_HUB_CACHE`.
+- Mở Docker Desktop ở chế độ Linux containers.
+- Trong `.env`, đặt `AI_SERVICE_API_KEY` và `DEEPSEEK_API_KEY`. Swagger dùng
+  service key. FastAPI dùng DeepSeek key để gọi API thật.
+- Compose dùng database `nexora_ai_demo` và Tika trong mạng Docker.
+  `DATABASE_URL` và `TIKA_SERVER_ENDPOINT` trong `.env` dành cho chế độ chạy local.
+- Nếu cổng 8000 hoặc 9998 đang bận, đặt `NEXORA_AI_PORT` hoặc `AI_TIKA_PORT` trong
+  `.env` trước khi chạy.
 
 ## 2. Khởi động
 
-Chạy từ thư mục gốc repository AI:
+Chạy từ thư mục gốc repository AI. Dùng `--build` lần đầu hoặc sau khi
+thay đổi source hay dependencies của API.
 
 ```powershell
-uv run --locked --env-file .env python -m scripts.db.bootstrap --confirm-db-name nexora_ai_demo
-uv run --locked --env-file .env uvicorn src.main:app --host 127.0.0.1 --port 8000
+docker compose up -d --build --wait --wait-timeout 900
+docker compose ps -a
 ```
 
-Lệnh bootstrap áp dụng schema vào database đã tạo sẵn. Từ terminal khác,
-kiểm tra `http://127.0.0.1:8000/health` và endpoint `/version` của Tika trước
-khi upload.
+Nếu đã có image và chỉ cần bật lại stack, dùng image local:
 
-Mở `http://127.0.0.1:8000/docs`.
+```powershell
+docker compose up -d --no-build --pull never --wait --wait-timeout 900
+```
+
+Lần đầu sẽ tải image, cài dependencies và nạp BGE-M3 cùng reranker. Compose
+giữ cache model, tài liệu upload và database trong volume qua các lần chạy.
+Theo dõi khởi động bằng `docker compose logs -f api`. Khi API báo healthy,
+mở [Swagger](http://127.0.0.1:8000/docs).
 
 ## 3. Authorize Swagger
 
@@ -67,8 +73,8 @@ Kết quả chứa các chunk liên quan, tên tài liệu, vị trí trang/offs
 
 ## 6. Tùy chọn — Sinh câu trả lời có dẫn nguồn
 
-Đặt `DEEPSEEK_API_KEY` trong `.env` rồi khởi động lại Uvicorn sau khi các
-request đang xử lý hoàn tất.
+Đặt `DEEPSEEK_API_KEY` trong `.env`. Nếu vừa đổi key, chạy
+`docker compose up -d api` để Compose tạo lại container với key mới.
 
 Trong Swagger, mở `POST /v1/answer` với cùng Bearer service key và gửi body
 giống `POST /v1/search`:
@@ -90,14 +96,13 @@ Express phải xác thực người dùng và quyền Board trước khi tích h
 
 ## 7. Dừng API
 
-Nhấn `Ctrl+C` trong terminal Uvicorn. Database, file upload và cache model
-được giữ lại.
+Chạy `docker compose down`. Database, file upload và cache model được giữ lại.
 
 ## Hiệu năng trên CPU
 
 Upload và search dùng chung một BGE-M3 trong mỗi tiến trình. Đặt
 `AI_WARMUP_MODELS=0` nếu muốn demo khởi động trước và nạp model khi có
-request. Nếu chạy Uvicorn trực tiếp, đặt `AI_WARMUP_MODELS=1` để nạp sẵn.
+request. Compose mặc định dùng `AI_WARMUP_MODELS=1` để nạp sẵn.
 Ingestion xử lý theo batch 2 chunk để query có thể dùng model giữa các batch.
 
 Search và answer giữ nguyên pool Dense và BM25. Sau RRF, mặc định rerank
@@ -107,7 +112,7 @@ Response và citation vẫn giữ nguyên nội dung chunk. Nếu bằng chứng
 chunk dài hoặc ở ứng viên có hạng RRF thấp, kết quả xếp hạng có thể thay đổi.
 
 Dùng cấu hình sau để đối chiếu với rerank đầy đủ trên cùng tài liệu và câu
-hỏi. Khởi động lại API sau khi đổi cấu hình.
+hỏi. Chạy `docker compose up -d api` sau khi đổi cấu hình trong `.env`.
 
 ```dotenv
 AI_RERANK_CANDIDATE_K=20

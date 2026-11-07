@@ -9,3 +9,4 @@ __pycache__/
 .local/
 .tmp-evaluation/
 .superpowers/
+compose.override.yaml

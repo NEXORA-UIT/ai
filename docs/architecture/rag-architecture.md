@@ -3,8 +3,8 @@
 The AI repository provides an internal FastAPI demo with `/health`,
 `POST /v1/documents`, `POST /v1/search`, and `POST /v1/answer`. The document
 route stages a local file and ingests it synchronously. Search and answer use
-Board-scoped data from PostgreSQL. Run the demo with Uvicorn and connect it
-to a dedicated development database and an Apache Tika server.
+Board-scoped data from PostgreSQL. Docker Compose runs Uvicorn, Apache Tika,
+and a dedicated development database for the Swagger demo.
 
 Express remains responsible for user authorization and the public API.
 The Redis/BullMQ worker and Express integration described below are the

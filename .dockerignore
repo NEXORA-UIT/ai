@@ -1,0 +1,13 @@
+**
+!Dockerfile
+!pyproject.toml
+!uv.lock
+!src/
+!src/**
+!scripts/
+!scripts/__init__.py
+!scripts/local_env.py
+!scripts/db/
+!scripts/db/**
+**/__pycache__
+**/*.pyc
