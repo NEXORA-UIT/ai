@@ -16,7 +16,7 @@ from pgvector import Vector
 from evaluation.manifest import load_evaluation_dataset
 from src.embedding.config import DEFAULT_DENSE_DIMENSION
 from src.embedding.embedder import Embedder
-from src.ingestion.persistence.storage import DocumentStorage
+from src.persistence.document_storage import DocumentStorage
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _GOLDEN_ROOT = _REPOSITORY_ROOT / "evaluation" / "golden"

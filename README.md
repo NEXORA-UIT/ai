@@ -16,13 +16,12 @@ src/database.py                 read-only PostgreSQL/pgvector probe
 src/ingestion/extraction/       file validation and Apache Tika extraction
 src/chunking/                   BGE-M3 tokenization and semantic chunk splitting
 src/ingestion/cleaning/         text normalization and cleanup
-src/ingestion/persistence/      document/chunk persistence in PostgreSQL
 src/ingestion/{pipeline,cli,preview}.py  ingestion workflow and entrypoints
 src/embedding/                  BGE-M3 embedding generation
 src/retrieval/                  Board-scoped dense and hybrid retrieval
 src/reranking/                  cross-encoder result reranking
 src/generation/                 grounded answer generation and citations
-src/persistence/                shared PostgreSQL connection and scoped chunk reads
+src/persistence/                PostgreSQL connection, document storage, and scoped chunk reads
 scripts/db/check_db.py          manual database connectivity check
 scripts/db/bootstrap_dev_db.sql local dev/test schema fixture
 scripts/ingestion/run_tika.py   local Apache Tika launcher

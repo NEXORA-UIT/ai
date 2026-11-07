@@ -23,13 +23,13 @@ from src.ingestion.exceptions import (
     DocumentProcessingConflictError,
     ProcessingOwnershipLostError,
 )
-from src.ingestion.persistence.storage import DocumentStorage
 from src.ingestion.schemas import (
     Chunk,
     EmbeddedChunk,
     EmbeddedDocument,
     FileValidationResult,
 )
+from src.persistence.document_storage import DocumentStorage
 
 
 def get_test_db_url() -> str | None:

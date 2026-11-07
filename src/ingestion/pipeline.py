@@ -20,7 +20,6 @@ from src.ingestion.extraction.tika_client import (
     DEFAULT_TIMEOUT_SECONDS,
     TikaClient,
 )
-from src.ingestion.persistence.storage import DocumentStorage, sanitize_error_message
 from src.ingestion.schemas import (
     ChunkedDocument,
     CleanedDocument,
@@ -28,6 +27,7 @@ from src.ingestion.schemas import (
     ExtractionResult,
     FileValidationResult,
 )
+from src.persistence.document_storage import DocumentStorage, sanitize_error_message
 
 if TYPE_CHECKING:
     from src.chunking.tokenizer import TokenCounter

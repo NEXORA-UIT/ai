@@ -17,3 +17,12 @@ def test_importing_ingestion_package_does_not_load_database_driver() -> None:
     )
 
     assert result.returncode == 0, result.stderr
+
+
+def test_ingestion_storage_export_resolves_to_shared_persistence() -> None:
+    from src.ingestion import DocumentStorage
+    from src.persistence.document_storage import (
+        DocumentStorage as SharedDocumentStorage,
+    )
+
+    assert DocumentStorage is SharedDocumentStorage

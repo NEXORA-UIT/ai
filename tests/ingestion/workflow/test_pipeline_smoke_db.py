@@ -6,8 +6,8 @@ import uuid
 import pytest
 
 from src.database import probe_pgvector
-from src.ingestion.persistence.storage import DocumentStorage
 from src.ingestion.pipeline import ingest_file_to_storage
+from src.persistence.document_storage import DocumentStorage
 from src.retrieval import search_documents
 
 

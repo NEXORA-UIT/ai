@@ -14,7 +14,7 @@ def test_retrieval_imports_do_not_load_document_writer():
     script = (
         "import sys; "
         "import src.retrieval.dense, src.retrieval.sparse; "
-        "assert 'src.ingestion.persistence.storage' not in sys.modules"
+        "assert 'src.persistence.document_storage' not in sys.modules"
     )
     result = subprocess.run(
         [sys.executable, "-c", script], capture_output=True, text=True, check=False

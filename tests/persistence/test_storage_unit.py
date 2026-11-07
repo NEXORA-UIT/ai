@@ -11,13 +11,13 @@ from src.ingestion.exceptions import (
     ProcessingOwnershipLostError,
     StorageValidationError,
 )
-from src.ingestion.persistence.storage import DocumentStorage
 from src.ingestion.schemas import (
     Chunk,
     EmbeddedChunk,
     EmbeddedDocument,
     FileValidationResult,
 )
+from src.persistence.document_storage import DocumentStorage
 
 
 def create_dummy_embedded_doc(

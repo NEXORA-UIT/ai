@@ -16,7 +16,7 @@ from src.embedding.config import (
     DEFAULT_MODEL_REVISION,
     DEFAULT_NORMALIZE_EMBEDDINGS,
 )
-from src.ingestion.persistence.storage import DocumentStorage
+from src.persistence.document_storage import DocumentStorage
 
 
 @pytest.fixture

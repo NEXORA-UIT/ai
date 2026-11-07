@@ -12,7 +12,6 @@ from src.ingestion.exceptions import (
     DatabaseConnectionError,
     TikaExtractionError,
 )
-from src.ingestion.persistence.storage import sanitize_error_message
 from src.ingestion.pipeline import ingest_file_to_storage
 from src.ingestion.schemas import (
     Chunk,
@@ -22,6 +21,7 @@ from src.ingestion.schemas import (
     EmbeddedDocument,
     ExtractionResult,
 )
+from src.persistence.document_storage import sanitize_error_message
 
 
 def dummy_artifacts():

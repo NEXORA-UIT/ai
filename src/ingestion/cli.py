@@ -29,9 +29,9 @@ from src.ingestion.console_config import (
     STORED_CHUNK_PREVIEW_CHARS,
     UNKNOWN_METADATA_LABEL,
 )
-from src.ingestion.persistence.storage import DocumentStorage
 from src.ingestion.pipeline import ingest_file_to_storage
 from src.local_env import load_local_env
+from src.persistence.document_storage import DocumentStorage
 
 
 def parse_safe_db_info(url: str | None) -> dict[str, Any]:
