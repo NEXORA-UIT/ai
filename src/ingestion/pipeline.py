@@ -1,38 +1,68 @@
 """High-level Python callable interface for document extraction and cleaning."""
 
+from __future__ import annotations
+
 import hashlib
+import logging
 import uuid
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.ingestion.chunker import (
-    DEFAULT_CHUNK_OVERLAP,
-    DEFAULT_CHUNK_SIZE,
-    chunk_document,
-)
-from src.ingestion.cleaner import clean_document
-from src.ingestion.file_validator import validate_file
-from src.ingestion.schemas import (
+from src.documents.models import (
     ChunkedDocument,
     CleanedDocument,
     EmbeddedDocument,
     ExtractionResult,
     FileValidationResult,
 )
-from src.ingestion.storage import DocumentStorage, sanitize_error_message
-from src.ingestion.tika_client import (
+from src.embedding.runtime import get_default_embedder
+from src.ingestion.chunking.config import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
+from src.ingestion.cleaning.cleaner import clean_document
+from src.ingestion.config import DEFAULT_INGESTION_BATCH_SIZE
+from src.ingestion.exceptions import FileTooLargeError
+from src.ingestion.extraction.file_validator import ValidatedFile, validate_file
+from src.ingestion.extraction.tika_client import (
     DEFAULT_MAX_FILE_SIZE_BYTES,
     DEFAULT_TIMEOUT_SECONDS,
     TikaClient,
 )
-from src.ingestion.tokenizer import TokenCounter
+from src.persistence.document_storage import DocumentStorage, sanitize_error_message
 
 if TYPE_CHECKING:
     from src.embedding.embedder import Embedder
+    from src.ingestion.chunking.tokenizer import TokenCounter
+
+logger = logging.getLogger(__name__)
+
+
+def _record_ingestion_failure(
+    storage: DocumentStorage,
+    document_id: str,
+    token: uuid.UUID,
+    *,
+    stage: str,
+    error: Exception,
+) -> None:
+    try:
+        storage.mark_document_failed(
+            document_id=document_id,
+            processing_token=token,
+            error_stage=stage,
+            error_type=type(error).__name__,
+            error_message=sanitize_error_message(error),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Could not record ingestion failure for document %s at %s (%s)",
+            document_id,
+            stage,
+            type(exc).__name__,
+        )
 
 
 def extract_and_clean(
-    file_path: Path | str,
+    file_path: Path | str | ValidatedFile,
     tika_endpoint: str | None = None,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES,
@@ -60,13 +90,17 @@ def extract_and_clean(
         timeout=timeout,
         max_file_size_bytes=max_file_size_bytes,
     )
-    extraction = client.extract_file(file_path)
+    extraction = (
+        client.extract_validated_file(file_path)
+        if isinstance(file_path, ValidatedFile)
+        else client.extract_file(file_path)
+    )
     cleaned = clean_document(extraction)
     return extraction, cleaned
 
 
 def extract_clean_and_chunk(
-    file_path: Path | str,
+    file_path: Path | str | ValidatedFile,
     token_counter: TokenCounter | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
@@ -91,6 +125,8 @@ def extract_clean_and_chunk(
             - CleanedDocument: Cleaned text and metadata.
             - ChunkedDocument: Ordered chunks with verified offsets and token counts.
     """
+    from src.ingestion.chunking.chunker import chunk_document
+
     extraction, cleaned = extract_and_clean(
         file_path=file_path,
         tika_endpoint=tika_endpoint,
@@ -107,12 +143,12 @@ def extract_clean_and_chunk(
 
 
 def extract_clean_chunk_and_embed(
-    file_path: Path | str,
-    embedder: "Embedder | None" = None,
+    file_path: Path | str | ValidatedFile,
+    embedder: Embedder | None = None,
     token_counter: TokenCounter | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
-    batch_size: int = 8,
+    batch_size: int = DEFAULT_INGESTION_BATCH_SIZE,
     tika_endpoint: str | None = None,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES,
@@ -125,7 +161,7 @@ def extract_clean_chunk_and_embed(
         token_counter: TokenCounter instance (defaults to BgeM3Tokenizer).
         chunk_size: Target maximum tokens per chunk (default 512).
         chunk_overlap: Overlap tokens between adjacent chunks (default 64).
-        batch_size: Inference batch size for embedding (default 8).
+        batch_size: Inference batch size for document embedding (default 2).
         tika_endpoint: Optional override for Apache Tika endpoint.
         timeout: HTTP timeout in seconds.
         max_file_size_bytes: Maximum allowed file size limit.
@@ -144,13 +180,23 @@ def extract_clean_chunk_and_embed(
         max_file_size_bytes=max_file_size_bytes,
     )
 
-    if embedder is None:
-        from src.embedding.embedder import BgeM3Embedder
+    model = embedder if embedder is not None else get_default_embedder()
+    embedded_doc = embed_chunked_document(
+        chunked, cleaned, embedder=model, batch_size=batch_size
+    )
+    return extraction, cleaned, chunked, embedded_doc
 
-        embedder = BgeM3Embedder(device="cpu", batch_size=batch_size)
 
+def embed_chunked_document(
+    chunked: ChunkedDocument,
+    cleaned: CleanedDocument,
+    *,
+    embedder: Embedder,
+    batch_size: int,
+) -> EmbeddedDocument:
+    """Embed the ordered chunks and attach the pipeline's model metadata."""
     embedded_chunks = embedder.embed_chunks(chunked.chunks, batch_size=batch_size)
-    embedded_doc = EmbeddedDocument(
+    return EmbeddedDocument(
         document_name=chunked.document_name,
         total_chunks=len(embedded_chunks),
         total_tokens=chunked.total_tokens,
@@ -163,21 +209,19 @@ def extract_clean_chunk_and_embed(
         cleaning_version=cleaned.cleaning_version,
     )
 
-    return extraction, cleaned, chunked, embedded_doc
-
 
 def ingest_file_to_storage(
-    file_path: Path | str,
+    file_path: Path | str | ValidatedFile,
     board_id: str | uuid.UUID,
     uploaded_by: str | uuid.UUID,
     storage: DocumentStorage | None = None,
     document_id: str | uuid.UUID | None = None,
     reclaim: bool = False,
-    embedder: "Embedder | None" = None,
+    embedder: Embedder | None = None,
     token_counter: TokenCounter | None = None,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
-    batch_size: int = 8,
+    batch_size: int = DEFAULT_INGESTION_BATCH_SIZE,
     tika_endpoint: str | None = None,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES,
@@ -209,15 +253,23 @@ def ingest_file_to_storage(
     Returns:
         tuple[str, EmbeddedDocument]: (persisted_document_id, embedded_doc)
     """
-    path, mime_type, file_size = validate_file(
-        file_path, max_size_bytes=max_file_size_bytes
+    validated = (
+        file_path
+        if isinstance(file_path, ValidatedFile)
+        else ValidatedFile(
+            *validate_file(file_path, max_size_bytes=max_file_size_bytes)
+        )
     )
-    sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    if validated.size_bytes > max_file_size_bytes:
+        raise FileTooLargeError("Validated file exceeds the ingestion size limit")
+    path = validated.path
+    with path.open("rb") as source:
+        sha256 = hashlib.file_digest(source, "sha256").hexdigest()
     file_validation = FileValidationResult(
         file_name=path.name,
-        file_size_bytes=file_size,
+        file_size_bytes=validated.size_bytes,
         sha256=sha256,
-        mime_type=mime_type,
+        mime_type=validated.mime_type,
     )
     storage_key = f"local://{path.resolve().as_posix()}"
 
@@ -240,7 +292,7 @@ def ingest_file_to_storage(
     # Phase 2: Heavy computation completely OUTSIDE database transaction
     try:
         _, _, _, embedded_doc = extract_clean_chunk_and_embed(
-            file_path=path,
+            file_path=replace(validated, sha256=sha256),
             embedder=embedder,
             token_counter=token_counter,
             chunk_size=chunk_size,
@@ -251,18 +303,10 @@ def ingest_file_to_storage(
             max_file_size_bytes=max_file_size_bytes,
         )
     except Exception as exc:
-        try:
-            storage.mark_document_failed(
-                document_id=doc_id,
-                processing_token=token,
-                error_stage="extraction_or_embedding",
-                error_type=type(exc).__name__,
-                error_message=sanitize_error_message(exc),
-            )
-        except Exception:
-            # Preserve original exception even if failure logging fails
-            pass
-        raise exc
+        _record_ingestion_failure(
+            storage, doc_id, token, stage="extraction_or_embedding", error=exc
+        )
+        raise
 
     # Phase 3: Atomically persist chunks and transition to READY
     try:
@@ -274,16 +318,9 @@ def ingest_file_to_storage(
             storage_key=storage_key,
         )
     except Exception as exc:
-        try:
-            storage.mark_document_failed(
-                document_id=doc_id,
-                processing_token=token,
-                error_stage="storage_persist",
-                error_type=type(exc).__name__,
-                error_message=sanitize_error_message(exc),
-            )
-        except Exception:
-            pass
-        raise exc
+        _record_ingestion_failure(
+            storage, doc_id, token, stage="storage_persist", error=exc
+        )
+        raise
 
     return doc_id, embedded_doc

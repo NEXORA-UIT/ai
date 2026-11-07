@@ -2,8 +2,8 @@ import math
 
 import pytest
 
-from scripts import check_db
-from src import database
+from scripts.db import check_db
+from src.persistence import probe as database
 
 
 class FakeConnection:

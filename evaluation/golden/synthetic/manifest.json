@@ -1,0 +1,16 @@
+{
+  "kind": "synthetic_correctness",
+  "version": "synthetic-v1",
+  "chunk_snapshot": "corpus.jsonl",
+  "chunk_snapshot_sha256": "6b6fef3299090bd1db2dda148265de792dd6c3f58ac674812dfe42081da45793",
+  "queries": "retrieval.jsonl",
+  "queries_sha256": "e9afbdcb83c07bc236b7de32c60ef3a3d30c33726848309b6a41b63071adcabd",
+  "embedding": {
+    "model_id": "BAAI/bge-m3",
+    "revision": "5617a9f61b028005a4858fdac845db406aefb181"
+  },
+  "chunking": {
+    "version": "synthetic-fixture-v1"
+  },
+  "source_documents": []
+}
