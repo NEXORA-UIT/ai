@@ -3,18 +3,18 @@
 from __future__ import annotations
 
 import json
-import math
-import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
 
-from src.generation.provider import (
-    DEEPSEEK_API_BASE_URL,
-    DEFAULT_DEEPSEEK_MODEL_ID,
+from src.generation.deepseek_transport import (
+    DeepSeekJsonTransport,
+    DeepSeekRequestError,
+    DeepSeekResponseError,
 )
+from src.generation.provider import DEFAULT_DEEPSEEK_MODEL_ID
 from src.generation.schemas import AnswerResult
 from src.retrieval.schemas import SourceChunk
 
@@ -62,30 +62,11 @@ class DeepSeekFaithfulnessJudge:
         timeout_seconds: float = DEFAULT_DEEPSEEK_JUDGE_TIMEOUT_SECONDS,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        selected_key = (
-            api_key if api_key is not None else os.environ.get("DEEPSEEK_API_KEY")
+        self._transport = DeepSeekJsonTransport(
+            api_key=api_key, timeout_seconds=timeout_seconds, transport=transport
         )
-        if not isinstance(selected_key, str) or not selected_key.strip():
-            raise ValueError("DEEPSEEK_API_KEY must be configured")
-        if isinstance(timeout_seconds, bool):
-            raise ValueError("timeout_seconds must be a positive finite number")
-        try:
-            timeout_value = float(timeout_seconds)
-        except (TypeError, ValueError, OverflowError) as exc:
-            raise ValueError(
-                "timeout_seconds must be a positive finite number"
-            ) from exc
-        if not math.isfinite(timeout_value) or timeout_value <= 0:
-            raise ValueError("timeout_seconds must be a positive finite number")
-
-        self.timeout_seconds = timeout_value
-        self._api_key = selected_key.strip()
+        self.timeout_seconds = self._transport.timeout_seconds
         self.model_id = DEFAULT_DEEPSEEK_JUDGE_MODEL_ID
-        self._client = httpx.Client(
-            base_url=DEEPSEEK_API_BASE_URL,
-            timeout=httpx.Timeout(timeout_value),
-            transport=transport,
-        )
 
     def judge(self, answer: str, evidence: Sequence[SourceChunk]) -> FaithfulnessResult:
         """Ask the model for strictly structured, evidence-linked claims."""
@@ -129,32 +110,8 @@ class DeepSeekFaithfulnessJudge:
             "max_tokens": _MAX_JUDGE_TOKENS,
         }
         try:
-            response = self._client.post(
-                "/chat/completions",
-                headers={"Authorization": f"Bearer {self._api_key}"},
-                json=payload,
-            )
-            response.raise_for_status()
-        except httpx.HTTPError:
-            raise FaithfulnessEvaluationError(
-                "DeepSeek faithfulness judge failed"
-            ) from None
-
-        try:
-            body = response.json()
-            if not isinstance(body, Mapping):
-                raise ValueError("body is not an object")
-            choices = body.get("choices")
-            if not isinstance(choices, list) or not choices:
-                raise ValueError("choices are missing")
-            message = choices[0].get("message")
-            content = message.get("content") if isinstance(message, Mapping) else None
-            if not isinstance(content, str) or not content.strip():
-                raise ValueError("content is missing")
-            parsed = json.loads(content)
-            if not isinstance(parsed, dict) or not isinstance(
-                parsed.get("claims"), list
-            ):
+            parsed = self._transport.complete_json(payload)
+            if not isinstance(parsed.get("claims"), list):
                 raise ValueError("claims array is missing")
             claims = tuple(_parse_claim(row) for row in parsed["claims"])
             source_ids = {source.chunk_id for source in evidence}
@@ -162,14 +119,18 @@ class DeepSeekFaithfulnessJudge:
                 if not set(claim.supporting_chunk_ids).issubset(source_ids):
                     raise ValueError("claim references unknown evidence IDs")
             return FaithfulnessResult(score=_score(claims), claims=claims)
-        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        except DeepSeekRequestError:
+            raise FaithfulnessEvaluationError(
+                "DeepSeek faithfulness judge failed"
+            ) from None
+        except (DeepSeekResponseError, KeyError, TypeError, ValueError):
             raise FaithfulnessEvaluationError(
                 "DeepSeek returned an invalid structured faithfulness result"
             ) from None
 
     def close(self) -> None:
         """Close the pooled HTTP client."""
-        self._client.close()
+        self._transport.close()
 
     def __enter__(self) -> DeepSeekFaithfulnessJudge:
         return self

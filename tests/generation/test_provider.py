@@ -74,6 +74,7 @@ def test_provider_uses_json_schema_and_separate_untrusted_user_context() -> None
     assert request.method == "POST"
     assert str(request.url) == f"{DEEPSEEK_API_BASE_URL}/chat/completions"
     assert request.headers["authorization"] == "Bearer test-secret-key"
+    assert request.extensions["timeout"]["read"] == 30
     payload = json.loads(request.content)
     assert payload["model"] == DEFAULT_DEEPSEEK_MODEL_ID == "deepseek-flash"
     assert payload["response_format"] == {"type": "json_object"}
@@ -97,7 +98,6 @@ def test_provider_has_explicit_timeout_and_requires_api_key(monkeypatch) -> None
     )
     try:
         assert client.timeout_seconds == 30
-        assert client._client.timeout.read == 30
     finally:
         client.close()
 

@@ -134,6 +134,18 @@ def test_fake_judge_error_is_typed_and_not_silently_scored() -> None:
     assert "provider secret" not in str(raised.value)
 
 
+def test_deepseek_judge_rejects_non_object_choice_without_leaking_payload() -> None:
+    transport = httpx.MockTransport(
+        lambda _request: httpx.Response(200, json={"choices": ["private content"]})
+    )
+    with DeepSeekFaithfulnessJudge(api_key="key", transport=transport) as judge:
+        with pytest.raises(
+            FaithfulnessEvaluationError, match="invalid structured faithfulness result"
+        ) as captured:
+            judge.judge(_answer().text, [_source()])
+    assert "private content" not in str(captured.value)
+
+
 def test_deepseek_judge_uses_user_role_for_answer_and_evidence() -> None:
     requests: list[httpx.Request] = []
     claims = {
