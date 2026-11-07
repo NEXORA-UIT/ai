@@ -34,7 +34,7 @@ Sẵn sàng cho các phase tiếp theo (Chunking, Embedding BGE-M3).
 
 ## 2. Cài Đặt & Chạy Apache Tika Server
 
-Hệ thống hỗ trợ cả bản Java portable không cần cài đặt Administrator và Docker.
+Có thể dùng Java portable để chạy Tika mà không cần cài đặt Administrator.
 
 ### Cách 1: Chạy qua Launcher Script với Portable Java (Khuyên dùng trên Windows)
 
@@ -62,11 +62,6 @@ Hệ thống hỗ trợ cả bản Java portable không cần cài đặt Admini
 ### Cách 2: Chạy trực tiếp bằng Java lệnh rời
 ```powershell
 & "C:\Users\ADMIN\Tools\Java\jdk-21.0.13+9\bin\java.exe" -jar "C:\Users\ADMIN\Tools\Tika\tika-server-standard-3.3.3.jar" --host 127.0.0.1 --port 9998
-```
-
-### Cách 3: Chạy bằng Docker
-```bash
-docker run -d --name nexora-tika -p 9998:9998 apache/tika:latest
 ```
 
 ---

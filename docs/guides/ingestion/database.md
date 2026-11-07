@@ -144,7 +144,6 @@ python -m src.ingestion.cli --inspect <DOCUMENT_UUID>
    - **Unit Tests:** Kiểm tra logic tiền xử lý, cấu trúc dữ liệu, và giao thức transaction bằng test-doubles (mock connection). Không kết nối mạng hay database thật.
    - **Integration Tests:** Yêu cầu một PostgreSQL database riêng biệt có sẵn extension `vector`, được truyền qua biến môi trường `TEST_DATABASE_URL`. Khi biến môi trường này vắng mặt, các bài kiểm thử này được đánh dấu `SKIPPED` một cách minh bạch, tuyệt đối không giả lập pass.
 2. **Các phương án cung cấp PostgreSQL + pgvector cho kiểm thử:**
-   - Khởi chạy một container PostgreSQL có image `pgvector/pgvector:pg16` (khi Docker daemon được kích hoạt).
    - Sử dụng một database PostgreSQL được cài đặt trực tiếp trên WSL2 hoặc máy chủ dev nội bộ có sẵn extension `vector`.
    - Kết nối tới một database test dev trên cloud/remote có hỗ trợ extension `vector`.
 3. **Ranh giới Schema Fixture & Tác động AICitation:**

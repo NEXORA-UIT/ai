@@ -1,6 +1,14 @@
 # Nexora RAG Architecture
 
-This document records the agreed **responsibilities and technologies**; implementation contracts are still open. The service has a FastAPI `/health` endpoint and a read-only PostgreSQL/pgvector connectivity check. Standalone ingestion and Board-scoped dense-retrieval cores are implemented; the end-to-end flows below are not yet wired to a worker or service API.
+The AI repository provides an internal FastAPI demo with `/health`,
+`POST /v1/documents`, `POST /v1/search`, and `POST /v1/answer`. The document
+route stages a local file and ingests it synchronously. Search and answer use
+Board-scoped data from PostgreSQL. Run the demo with Uvicorn and connect it
+to a dedicated development database and an Apache Tika server.
+
+Express remains responsible for user authorization and the public API.
+The Redis/BullMQ worker and Express integration described below are the
+target deployment flow. The internal demo routes accept a service key.
 
 ## Components and responsibilities
 
@@ -14,11 +22,11 @@ This document records the agreed **responsibilities and technologies**; implemen
 
 The backend's existing Node.js workers continue to handle other jobs; they are not part of RAG ingestion.
 
-## Ingestion flow
+## Target ingestion flow
 
 The frontend sends a document to Express. Express checks authorization, manages the file and metadata, then queues background work through BullMQ. The Python Worker reads the document, creates chunks and embeddings using **BAAI/bge-m3**, then writes data to PostgreSQL + pgvector using psycopg 3. Ingestion must handle failures and retries safely. When a document is reprocessed, an older result must not overwrite the new one. Queue messages must not contain secrets or large document contents.
 
-## Retrieval and answer flow
+## Target retrieval and answer flow
 
 The frontend sends a question through Express. Express handles authentication and Board-level authorization before connecting to FastAPI. FastAPI retrieves only data in the authorized Board scope and generates an answer with references to the source documents. The Worker and FastAPI must use the same BGE-M3 configuration so document and query embeddings are compatible.
 
@@ -27,14 +35,18 @@ The frontend sends a question through Express. Express handles authentication an
 | Area | Technology |
 | --- | --- |
 | Runtime/API | Python 3.12, FastAPI, Uvicorn |
-| Background ingestion | Python BullMQ Worker, Redis + BullMQ |
-| RAG framework | LangChain |
+| Background ingestion (planned) | Python BullMQ worker, Redis + BullMQ |
 | Embeddings | BAAI/bge-m3, dense vectors with **1024 dimensions** |
 | Vector database | PostgreSQL + pgvector; Python uses psycopg 3, with no added ORM |
-| Generation | LLM API; answers include source references |
-| Tracing/evaluation | Langfuse |
+| Retrieval | Exact cosine dense search, `rank-bm25`, RRF, BGE CPU reranking |
+| Generation | DeepSeek JSON completion and evidence-backed citation IDs |
+| Evaluation | A/B/C harness with optional Langfuse traces |
 
-The Worker, LangChain, embeddings, generation, and Langfuse are planned for later phases and do not have runtime implementations in Phase 0.
+Dense and sparse reads share one PostgreSQL eligibility predicate for Board,
+READY status, and embedding fingerprint. Evaluation and the API share the
+candidate, fusion, and reranking stages. The default shortlist is five
+candidates. Set `AI_RERANK_MAX_LENGTH=192` for the optional CPU profile.
+Full chunk text is retained for citations and generation.
 
 ## Decisions for implementation phases
 
