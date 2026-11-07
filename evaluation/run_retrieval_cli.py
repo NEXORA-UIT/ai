@@ -10,10 +10,11 @@ from uuid import UUID
 
 from evaluation.adapters import build_retrieval_variants
 from evaluation.manifest import EvaluationDataset, load_evaluation_dataset
-from evaluation.run_retrieval import run_retrieval
+from evaluation.run_retrieval import RerankerProfile, run_retrieval
 from evaluation.schemas import DatasetKind
 from src.embedding.embedder import BgeM3Embedder
 from src.ingestion.persistence.storage import DocumentStorage
+from src.reranking.config import get_rerank_candidate_limit
 from src.reranking.cross_encoder import get_default_reranker
 
 
@@ -114,10 +115,11 @@ def main(argv: list[str] | None = None) -> None:
         )
         storage = DocumentStorage(database_url=database_url)
         _verify_database_and_seed(storage, database_name, dataset)
+        reranker = get_default_reranker()
         variants = build_retrieval_variants(
             embedder=BgeM3Embedder(),
             storage=storage,
-            reranker=get_default_reranker(),
+            reranker=reranker,
         )
         report = run_retrieval(
             args.dataset,
@@ -125,6 +127,15 @@ def main(argv: list[str] | None = None) -> None:
             k=args.k,
             candidate_k=args.candidate_k,
             output_dir=args.output_dir,
+            reranker_profile=RerankerProfile(
+                model_id=reranker.model_id,
+                model_revision=reranker.model_revision,
+                candidate_limit=min(
+                    args.candidate_k, get_rerank_candidate_limit(top_k=args.k)
+                ),
+                max_length=reranker.max_length,
+                explicit_warmup=False,
+            ),
         )
     except Exception as exc:
         parser.error(str(exc))

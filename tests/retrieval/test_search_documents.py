@@ -70,8 +70,8 @@ def test_facade_forwards_shared_scope_and_candidate_pool_to_each_stage(
     fuse = MagicMock(return_value=fused)
     rerank = MagicMock(return_value=reranked)
     monkeypatch.setattr(module, "search_hybrid_candidates", hybrid)
-    monkeypatch.setattr(module, "fuse_rrf", fuse)
-    monkeypatch.setattr(module, "rerank_chunks", rerank)
+    monkeypatch.setattr(import_module("src.retrieval.ranking"), "fuse_rrf", fuse)
+    monkeypatch.setattr(import_module("src.retrieval.ranking"), "rerank_chunks", rerank)
     embedder = object()
     storage = object()
     reranker = object()
@@ -158,9 +158,11 @@ def test_facade_rejects_final_results_outside_board_scope(
         "search_hybrid_candidates",
         lambda *_args, **_kwargs: HybridCandidates([], []),
     )
-    monkeypatch.setattr(module, "fuse_rrf", lambda *_args, **_kwargs: [])
     monkeypatch.setattr(
-        module,
+        import_module("src.retrieval.ranking"), "fuse_rrf", lambda *_args, **_kwargs: []
+    )
+    monkeypatch.setattr(
+        import_module("src.retrieval.ranking"),
         "rerank_chunks",
         lambda *_args, **_kwargs: [
             RerankedChunk(source=cross_board_source, rerank_score=0.5, rrf_score=0.01)
@@ -263,11 +265,38 @@ def test_candidate_limit_is_forwarded_to_rrf_before_final_top_k(
     fuse = MagicMock(return_value=[])
     rerank = MagicMock(return_value=[])
     monkeypatch.setattr(module, "search_hybrid_candidates", hybrid)
-    monkeypatch.setattr(module, "fuse_rrf", fuse)
-    monkeypatch.setattr(module, "rerank_chunks", rerank)
+    monkeypatch.setattr(import_module("src.retrieval.ranking"), "fuse_rrf", fuse)
+    monkeypatch.setattr(import_module("src.retrieval.ranking"), "rerank_chunks", rerank)
 
     search_documents("question", _BOARD_A, top_k=2, candidate_k=20)
 
     assert hybrid.call_args.kwargs["candidate_k"] == 20
     fuse.assert_called_once_with(candidates, top_k=20)
     rerank.assert_called_once_with("question", [], top_k=2, reranker=None)
+
+
+@pytest.mark.parametrize(
+    "configured_limit, expected_count", [(None, 5), ("20", 20), ("1", 5)]
+)
+def test_rerank_budget_keeps_the_hybrid_pool_and_full_source(
+    monkeypatch: pytest.MonkeyPatch, configured_limit, expected_count
+) -> None:
+    module = import_module("src.retrieval.search_documents")
+    if configured_limit is None:
+        monkeypatch.delenv("AI_RERANK_CANDIDATE_K", raising=False)
+    else:
+        monkeypatch.setenv("AI_RERANK_CANDIDATE_K", configured_limit)
+    candidates = HybridCandidates(
+        dense=[_retrieved(f"chunk-{i:02d}") for i in range(20)], sparse=[]
+    )
+    hybrid = MagicMock(return_value=candidates)
+    monkeypatch.setattr(module, "search_hybrid_candidates", hybrid)
+    reranker = MagicMock()
+    reranker.score_pairs.side_effect = lambda _question, passages: [0.8] * len(passages)
+
+    result = search_documents("question", _BOARD_A, reranker=reranker)
+
+    assert hybrid.call_args.kwargs["candidate_k"] == 20
+    assert len(reranker.score_pairs.call_args.args[1]) == expected_count
+    assert len(result.chunks) == 5
+    assert result.chunks[0].content == candidates.dense[0].content

@@ -9,6 +9,7 @@ import pytest
 
 from evaluation.run_retrieval import (
     VARIANTS,
+    RerankerProfile,
     RetrievalOutput,
     run_retrieval,
 )
@@ -41,6 +42,7 @@ def test_variants_share_snapshot_query_order_and_final_top_k(tmp_path: Path) -> 
         k=2,
         candidate_k=20,
         output_dir=tmp_path,
+        reranker_profile=RerankerProfile("reranker", "revision", 5, 192, False),
     )
 
     assert set(seen) == set(VARIANTS)
@@ -73,10 +75,19 @@ def test_variants_share_snapshot_query_order_and_final_top_k(tmp_path: Path) -> 
     markdown = (tmp_path / "retrieval-report.md").read_text(encoding="utf-8")
     assert "synthetic correctness" in markdown.lower()
     assert "real-document quality" in markdown.lower()
+    assert "**Rerank candidates:** 5 | **Max tokens:** 192" in markdown
+    assert "**Explicit model warmup:** no" in markdown
     encoded = json.loads(
         (tmp_path / "retrieval-report.json").read_text(encoding="utf-8")
     )
     assert encoded["dataset_kind"] == "synthetic_correctness"
+    assert encoded["reranker_profile"] == {
+        "model_id": "reranker",
+        "model_revision": "revision",
+        "candidate_limit": 5,
+        "max_length": 192,
+        "explicit_warmup": False,
+    }
 
 
 def test_mrr_and_case_results_use_the_same_final_top_k(tmp_path: Path) -> None:

@@ -9,6 +9,7 @@ import pytest
 
 from src.chunking.tokenizer import WhitespaceTokenCounter
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
+from src.ingestion.extraction.tika_client import TikaClient
 from src.ingestion.pipeline import ingest_file_to_storage
 from src.ingestion.schemas import EmbeddedChunk, ExtractionResult
 from src.retrieval.dense import search_by_text
@@ -51,18 +52,19 @@ class _DeterministicEmbedder:
         return [_QUERY_VECTOR.copy() for _ in texts]
 
 
-class _TextFileExtractor:
-    """Read the TXT fixture while keeping Tika outside this deterministic test."""
+class _TextFileExtractor(TikaClient):
+    """Keep file validation and replace only the Tika HTTP boundary."""
 
-    def __init__(self, **_: object) -> None:
-        pass
-
-    def extract_file(self, file_path: str | Path) -> ExtractionResult:
-        path = Path(file_path)
+    def extract_bytes(
+        self,
+        content: bytes,
+        file_name: str,
+        mime_type: str = "application/octet-stream",
+    ) -> ExtractionResult:
         return ExtractionResult(
-            raw_text=path.read_text(encoding="utf-8"),
-            file_name=path.name,
-            mime_type="text/plain",
+            raw_text=content.decode("utf-8"),
+            file_name=file_name,
+            mime_type=mime_type,
             metadata={},
             page_count=None,
             has_form_feeds=False,

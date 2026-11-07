@@ -25,6 +25,7 @@ def test_bge_reranker_loads_approved_revision_on_cpu(
         model_id=config.DEFAULT_RERANKER_MODEL_ID,
         revision=config.DEFAULT_RERANKER_MODEL_REVISION,
         device="cpu",
+        max_length=None,
     )
 
 
@@ -111,3 +112,24 @@ def test_default_reranker_factory_returns_one_lazy_instance() -> None:
         module.get_default_reranker.cache_clear()
 
     assert first is second
+
+
+@pytest.mark.parametrize(
+    "configured_length, expected_length", [(None, None), ("192", 192)]
+)
+def test_default_model_token_budget(monkeypatch, configured_length, expected_length):
+    module = import_module("src.reranking.cross_encoder")
+    factory = MagicMock()
+    factory.return_value.predict.return_value = [0.75]
+    monkeypatch.setattr(module, "_create_cross_encoder", factory)
+    if configured_length is None:
+        monkeypatch.delenv("AI_RERANK_MAX_LENGTH", raising=False)
+    else:
+        monkeypatch.setenv("AI_RERANK_MAX_LENGTH", configured_length)
+    module.get_default_reranker.cache_clear()
+    try:
+        scores = module.get_default_reranker().score_pairs("question", ["passage"])
+        assert scores == [0.75]
+        assert factory.call_args.kwargs.get("max_length") == expected_length
+    finally:
+        module.get_default_reranker.cache_clear()

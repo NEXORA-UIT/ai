@@ -29,6 +29,22 @@ def test_retrieval_config_does_not_eagerly_import_embedding_models() -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_evaluation_import_preserves_callable_retrieval_export() -> None:
+    script = (
+        "import evaluation.adapters; "
+        "from src.retrieval import search_documents; "
+        "assert callable(search_documents)"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).resolve().parents[2],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_embedding_config_does_not_import_inference_runtime() -> None:
     repository_root = Path(__file__).resolve().parents[2]
     script = (

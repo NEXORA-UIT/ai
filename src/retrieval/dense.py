@@ -4,11 +4,8 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from functools import lru_cache
 from typing import TYPE_CHECKING
 from uuid import UUID
-
-from pgvector import Vector
 
 from src.embedding.config import (
     DEFAULT_DENSE_DIMENSION as _DENSE_DIMENSION,
@@ -16,8 +13,9 @@ from src.embedding.config import (
 from src.embedding.config import (
     DEFAULT_NORMALIZE_EMBEDDINGS,
 )
-from src.ingestion.persistence.storage import DocumentStorage
-from src.ingestion.status import DocumentStatus
+from src.embedding.runtime import get_default_embedder as get_default_embedder
+from src.persistence.chunk_reader import read_dense_chunks
+from src.persistence.postgres import ConnectionProvider
 from src.retrieval.config import DEFAULT_SEARCH_TOP_K
 from src.retrieval.metadata import (
     DEFAULT_EMBEDDING_FINGERPRINT,
@@ -31,7 +29,7 @@ from src.validation import (
 )
 
 if TYPE_CHECKING:
-    from src.embedding.embedder import BgeM3Embedder, Embedder
+    from src.embedding.embedder import Embedder
 
 def _validate_query_vector(query_vector: Sequence[float]) -> list[float]:
     """Normalize a query vector to floats and reject invalid dense vectors."""
@@ -65,26 +63,13 @@ def _validate_board_and_limit(board_id: str | UUID, top_k: int) -> UUID:
     return board_uuid
 
 
-def _create_default_embedder() -> BgeM3Embedder:
-    """Construct the default CPU encoder without importing it at startup."""
-    from src.embedding.embedder import BgeM3Embedder
-
-    return BgeM3Embedder()
-
-
-@lru_cache(maxsize=1)
-def get_default_embedder() -> BgeM3Embedder:
-    """Return the process-wide lazy BGE-M3 embedder instance."""
-    return _create_default_embedder()
-
-
 def search_by_vector(
     query_vector: Sequence[float],
     board_id: str | UUID,
     *,
     top_k: int = DEFAULT_SEARCH_TOP_K,
     fingerprint: EmbeddingFingerprint | None = None,
-    storage: DocumentStorage | None = None,
+    storage: ConnectionProvider | None = None,
 ) -> list[RetrievedChunk]:
     """Return the closest READY chunks belonging to ``board_id``.
 
@@ -100,68 +85,9 @@ def search_by_vector(
         raise ValueError(
             "fingerprint dimension must match the query vector dimension"
         )
-    db = storage if storage is not None else DocumentStorage()
-    connection = db.get_connection()
-
-    try:
-        with connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT dc.id,
-                           dc.document_id,
-                           d.board_id,
-                           dc.chunk_index,
-                           d.file_name,
-                           d.storage_key,
-                           dc.content,
-                           dc.page_number,
-                           dc.start_offset,
-                           dc.end_offset,
-                           dc.embedding <=> %(query_vector)s::vector AS cosine_distance
-                    FROM document_chunks AS dc
-                    JOIN documents AS d ON d.id = dc.document_id
-                    WHERE d.board_id = %(board_id)s
-                      AND d.status = %(ready_status)s
-                      AND d.metadata -> 'model_id' = to_jsonb(%(model_id)s::text)
-                      AND d.metadata -> 'model_revision' =
-                          to_jsonb(%(model_revision)s::text)
-                      AND d.metadata -> 'dimension' = to_jsonb(%(dimension)s::integer)
-                      AND d.metadata -> 'normalized' = to_jsonb(%(normalized)s::boolean)
-                    ORDER BY cosine_distance ASC, dc.id ASC
-                    LIMIT %(top_k)s;
-                    """,
-                    {
-                        "query_vector": Vector(vector_values),
-                        "board_id": board_uuid,
-                        "ready_status": DocumentStatus.READY.value,
-                        "model_id": selected_fingerprint.model_id,
-                        "model_revision": selected_fingerprint.model_revision,
-                        "dimension": selected_fingerprint.dimension,
-                        "normalized": selected_fingerprint.normalized,
-                        "top_k": top_k,
-                    },
-                )
-                rows = cursor.fetchall()
-    finally:
-        connection.close()
-
-    return [
-        RetrievedChunk(
-            chunk_id=str(row[0]),
-            document_id=str(row[1]),
-            board_id=str(row[2]),
-            chunk_index=row[3],
-            file_name=row[4],
-            storage_key=row[5],
-            content=row[6],
-            page_number=row[7],
-            start_offset=row[8],
-            end_offset=row[9],
-            cosine_distance=float(row[10]),
-        )
-        for row in rows
-    ]
+    return read_dense_chunks(
+        board_uuid, selected_fingerprint, vector_values, top_k=top_k, storage=storage
+    )
 
 
 def search_by_text(
@@ -170,7 +96,7 @@ def search_by_text(
     *,
     top_k: int = DEFAULT_SEARCH_TOP_K,
     embedder: Embedder | None = None,
-    storage: DocumentStorage | None = None,
+    storage: ConnectionProvider | None = None,
 ) -> list[RetrievedChunk]:
     """Embed a question with BGE-M3 and return scoped dense matches."""
     if not isinstance(question, str) or not question.strip():
@@ -178,20 +104,24 @@ def search_by_text(
 
     _validate_board_and_limit(board_id, top_k)
     selected_embedder = embedder if embedder is not None else get_default_embedder()
+    vector, fingerprint = embed_query(question, selected_embedder)
+    return search_by_vector(
+        vector, board_id, top_k=top_k, fingerprint=fingerprint, storage=storage
+    )
+
+
+def embed_query(
+    question: str, embedder: Embedder
+) -> tuple[list[float], EmbeddingFingerprint]:
+    """Encode one query with the fingerprint of the model that produced it."""
     fingerprint = EmbeddingFingerprint(
-        model_id=selected_embedder.model_name,
-        model_revision=selected_embedder.revision,
-        dimension=selected_embedder.dimension,
+        model_id=embedder.model_name,
+        model_revision=embedder.revision,
+        dimension=embedder.dimension,
         normalized=DEFAULT_NORMALIZE_EMBEDDINGS,
     )
-    vectors = selected_embedder.embed_texts([question])
+    vectors = embedder.embed_texts([question])
     if len(vectors) != 1:
         raise ValueError("embedder must return exactly one vector for one question")
 
-    return search_by_vector(
-        vectors[0],
-        board_id,
-        top_k=top_k,
-        fingerprint=fingerprint,
-        storage=storage,
-    )
+    return vectors[0], fingerprint

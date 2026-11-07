@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
 import uuid
 from collections.abc import Callable
@@ -18,9 +17,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import psycopg
-from pgvector.psycopg import register_vector
 
-from src.database_config import DATABASE_STORAGE_CONNECT_TIMEOUT_SECONDS
 from src.embedding.config import DEFAULT_DENSE_DIMENSION, L2_NORM_TOLERANCE
 from src.ingestion.exceptions import (
     BoardMismatchError,
@@ -31,6 +28,7 @@ from src.ingestion.exceptions import (
     StorageValidationError,
 )
 from src.ingestion.status import DocumentStatus
+from src.persistence.postgres import connect_pgvector
 
 if TYPE_CHECKING:
     from src.ingestion.schemas import (
@@ -150,24 +148,9 @@ class DocumentStorage:
 
     def get_connection(self) -> psycopg.Connection:
         """Create and return a new psycopg connection with pgvector registered."""
-        try:
-            if self._connection_factory is not None:
-                conn = self._connection_factory()
-            else:
-                url = self._database_url or os.environ.get("DATABASE_URL")
-                if not url:
-                    raise DatabaseConnectionError("DATABASE_URL is not configured.")
-                conn = psycopg.connect(
-                    url,
-                    connect_timeout=DATABASE_STORAGE_CONNECT_TIMEOUT_SECONDS,
-                )
-            if isinstance(conn, psycopg.Connection):
-                register_vector(conn)
-            return conn
-        except psycopg.Error as exc:
-            raise DatabaseConnectionError(
-                f"Failed to connect to PostgreSQL: {exc}"
-            ) from exc
+        return connect_pgvector(
+            database_url=self._database_url, connection_factory=self._connection_factory
+        )
 
     def claim_or_create_document(
         self,

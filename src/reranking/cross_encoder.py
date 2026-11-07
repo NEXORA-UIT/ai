@@ -12,6 +12,7 @@ from src.reranking.config import (
     DEFAULT_RERANKER_DEVICE,
     DEFAULT_RERANKER_MODEL_ID,
     DEFAULT_RERANKER_MODEL_REVISION,
+    get_rerank_max_length,
 )
 from src.validation import QUESTION_TEXT_REQUIRED
 
@@ -36,7 +37,9 @@ class RerankerInferenceError(RerankerError):
     """Raised when model inference fails or returns invalid scores."""
 
 
-def _create_cross_encoder(*, model_id: str, revision: str, device: str):
+def _create_cross_encoder(
+    *, model_id: str, revision: str, device: str, max_length: int | None = None
+):
     """Import and initialize SentenceTransformers only when first needed."""
     from sentence_transformers import CrossEncoder
 
@@ -44,6 +47,7 @@ def _create_cross_encoder(*, model_id: str, revision: str, device: str):
         model_name_or_path=model_id,
         revision=revision,
         device=device,
+        max_length=max_length,
     )
 
 
@@ -57,6 +61,7 @@ class BgeReranker:
         model_revision: str = DEFAULT_RERANKER_MODEL_REVISION,
         device: str = DEFAULT_RERANKER_DEVICE,
         batch_size: int = DEFAULT_RERANKER_BATCH_SIZE,
+        max_length: int | None = None,
     ) -> None:
         if not isinstance(model_id, str) or not model_id.strip():
             raise ValueError("model_id must contain non-whitespace text")
@@ -73,6 +78,7 @@ class BgeReranker:
         self.model_revision = model_revision
         self.device = device
         self.batch_size = batch_size
+        self.max_length = max_length
         self._model = None
 
     def _get_model(self):
@@ -82,6 +88,7 @@ class BgeReranker:
                     model_id=self.model_id,
                     revision=self.model_revision,
                     device=self.device,
+                    max_length=self.max_length,
                 )
             except Exception as exc:
                 raise RerankerLoadError(
@@ -140,4 +147,4 @@ class BgeReranker:
 @lru_cache(maxsize=1)
 def get_default_reranker() -> BgeReranker:
     """Return the process-wide lazy instance of the approved BGE reranker."""
-    return BgeReranker()
+    return BgeReranker(max_length=get_rerank_max_length())

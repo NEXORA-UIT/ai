@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from src.ingestion.persistence.storage import DocumentStorage
-from src.ingestion.status import DocumentStatus
+from src.persistence.chunk_reader import read_corpus_chunks
+from src.persistence.postgres import ConnectionProvider
 from src.retrieval.bm25 import rank_sparse, tokenize_lexical
 from src.retrieval.config import (
     DEFAULT_CANDIDATE_K,
@@ -15,7 +15,7 @@ from src.retrieval.metadata import (
     DEFAULT_EMBEDDING_FINGERPRINT,
     EmbeddingFingerprint,
 )
-from src.retrieval.schemas import SourceChunk, SparseHit, SparseSearchResult
+from src.retrieval.schemas import SparseHit, SparseSearchResult
 from src.validation import (
     BOARD_ID_INVALID_UUID,
     QUESTION_TEXT_REQUIRED,
@@ -57,7 +57,7 @@ def search_sparse(
     top_k: int = DEFAULT_CANDIDATE_K,
     max_corpus_chunks: int = DEFAULT_SPARSE_CORPUS_LIMIT,
     fingerprint: EmbeddingFingerprint | None = None,
-    storage: DocumentStorage | None = None,
+    storage: ConnectionProvider | None = None,
 ) -> list[SparseHit]:
     """Rank eligible chunks from one Board without loading embedding vectors."""
     return search_sparse_with_stats(
@@ -77,7 +77,7 @@ def search_sparse_with_stats(
     top_k: int = DEFAULT_CANDIDATE_K,
     max_corpus_chunks: int = DEFAULT_SPARSE_CORPUS_LIMIT,
     fingerprint: EmbeddingFingerprint | None = None,
-    storage: DocumentStorage | None = None,
+    storage: ConnectionProvider | None = None,
 ) -> SparseSearchResult:
     """Return BM25 hits plus the count of eligible chunks loaded for ranking."""
     board_uuid, query_tokens = _validate_inputs(
@@ -92,70 +92,15 @@ def search_sparse_with_stats(
     if not isinstance(selected_fingerprint, EmbeddingFingerprint):
         raise ValueError("fingerprint must be an EmbeddingFingerprint")
 
-    db = storage if storage is not None else DocumentStorage()
-    connection = db.get_connection()
-    try:
-        with connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    SELECT dc.id,
-                           dc.document_id,
-                           d.board_id,
-                           dc.chunk_index,
-                           d.file_name,
-                           d.storage_key,
-                           dc.content,
-                           dc.page_number,
-                           dc.start_offset,
-                           dc.end_offset
-                    FROM document_chunks AS dc
-                    JOIN documents AS d ON d.id = dc.document_id
-                    WHERE d.board_id = %(board_id)s
-                      AND d.status = %(ready_status)s
-                      AND d.metadata -> 'model_id' = to_jsonb(%(model_id)s::text)
-                      AND d.metadata -> 'model_revision' =
-                          to_jsonb(%(model_revision)s::text)
-                      AND d.metadata -> 'dimension' = to_jsonb(%(dimension)s::integer)
-                      AND d.metadata -> 'normalized' = to_jsonb(%(normalized)s::boolean)
-                    ORDER BY dc.id ASC
-                    LIMIT %(corpus_limit)s;
-                    """,
-                    {
-                        "board_id": board_uuid,
-                        "ready_status": DocumentStatus.READY.value,
-                        "model_id": selected_fingerprint.model_id,
-                        "model_revision": selected_fingerprint.model_revision,
-                        "dimension": selected_fingerprint.dimension,
-                        "normalized": selected_fingerprint.normalized,
-                        "corpus_limit": max_corpus_chunks + 1,
-                    },
-                )
-                rows = cursor.fetchall()
-    finally:
-        connection.close()
-
-    if len(rows) > max_corpus_chunks:
+    corpus = read_corpus_chunks(
+        board_uuid, selected_fingerprint, limit=max_corpus_chunks + 1, storage=storage
+    )
+    if len(corpus) > max_corpus_chunks:
         raise CorpusTooLargeError(
             f"Board BM25 corpus exceeds the configured limit of "
             f"{max_corpus_chunks} chunks"
         )
 
-    corpus = [
-        SourceChunk(
-            chunk_id=str(row[0]),
-            document_id=str(row[1]),
-            board_id=str(row[2]),
-            chunk_index=row[3],
-            file_name=row[4],
-            storage_key=row[5],
-            content=row[6],
-            page_number=row[7],
-            start_offset=row[8],
-            end_offset=row[9],
-        )
-        for row in rows
-    ]
     if not corpus:
         return SparseSearchResult(hits=[], corpus_size=0)
     return SparseSearchResult(

@@ -15,7 +15,12 @@ from src.embedding.config import (
     DEFAULT_NORMALIZE_EMBEDDINGS,
 )
 from src.retrieval.metadata import EmbeddingFingerprint
-from src.retrieval.schemas import RetrievedChunk, SourceChunk, SparseHit
+from src.retrieval.schemas import (
+    RetrievedChunk,
+    SourceChunk,
+    SparseHit,
+    SparseSearchResult,
+)
 
 _BOARD_A = "11111111-1111-1111-1111-111111111111"
 _QUERY_VECTOR = [1.0] + [0.0] * (DEFAULT_DENSE_DIMENSION - 1)
@@ -72,9 +77,11 @@ def test_hybrid_embeds_once_and_forwards_shared_scope_and_fingerprint(
     dense_hits = [_dense_hit()]
     sparse_hits = [_sparse_hit()]
     dense_search = MagicMock(return_value=dense_hits)
-    sparse_search = MagicMock(return_value=sparse_hits)
+    sparse_search = MagicMock(
+        return_value=SparseSearchResult(hits=sparse_hits, corpus_size=1)
+    )
     monkeypatch.setattr(module, "search_by_vector", dense_search)
-    monkeypatch.setattr(module, "search_sparse", sparse_search)
+    monkeypatch.setattr(module, "search_sparse_with_stats", sparse_search)
     storage = object()
 
     candidates = module.search_hybrid_candidates(
@@ -115,11 +122,11 @@ def test_hybrid_preserves_independently_empty_channels(
 ) -> None:
     module = import_module("src.retrieval.hybrid")
     embedder = _embedder()
+    monkeypatch.setattr(module, "search_by_vector", MagicMock(return_value=dense_hits))
     monkeypatch.setattr(
-        module, "search_by_vector", MagicMock(return_value=dense_hits)
-    )
-    monkeypatch.setattr(
-        module, "search_sparse", MagicMock(return_value=sparse_hits)
+        module,
+        "search_sparse_with_stats",
+        MagicMock(return_value=SparseSearchResult(hits=sparse_hits, corpus_size=1)),
     )
 
     candidates = module.search_hybrid_candidates(
@@ -138,13 +145,15 @@ def test_hybrid_propagates_channel_errors_without_returning_partial_results(
     embedder = _embedder()
     failure = RuntimeError("retrieval channel failed")
     dense_search = MagicMock(return_value=[_dense_hit()])
-    sparse_search = MagicMock(return_value=[_sparse_hit()])
+    sparse_search = MagicMock(
+        return_value=SparseSearchResult(hits=[_sparse_hit()], corpus_size=1)
+    )
     if failing_channel == "dense":
         dense_search.side_effect = failure
     else:
         sparse_search.side_effect = failure
     monkeypatch.setattr(module, "search_by_vector", dense_search)
-    monkeypatch.setattr(module, "search_sparse", sparse_search)
+    monkeypatch.setattr(module, "search_sparse_with_stats", sparse_search)
 
     with pytest.raises(RuntimeError, match="retrieval channel failed"):
         module.search_hybrid_candidates(
@@ -179,7 +188,7 @@ def test_hybrid_validates_inputs_before_embedding_or_search(
     dense_search = MagicMock()
     sparse_search = MagicMock()
     monkeypatch.setattr(module, "search_by_vector", dense_search)
-    monkeypatch.setattr(module, "search_sparse", sparse_search)
+    monkeypatch.setattr(module, "search_sparse_with_stats", sparse_search)
 
     with pytest.raises(ValueError):
         module.search_hybrid_candidates(
@@ -205,7 +214,7 @@ def test_hybrid_rejects_wrong_embedding_batch_size_before_search(
     dense_search = MagicMock()
     sparse_search = MagicMock()
     monkeypatch.setattr(module, "search_by_vector", dense_search)
-    monkeypatch.setattr(module, "search_sparse", sparse_search)
+    monkeypatch.setattr(module, "search_sparse_with_stats", sparse_search)
 
     with pytest.raises(ValueError, match="exactly one vector"):
         module.search_hybrid_candidates(

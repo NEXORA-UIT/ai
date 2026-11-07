@@ -142,6 +142,15 @@ class VariantReport:
 
 
 @dataclass(frozen=True)
+class RerankerProfile:
+    model_id: str
+    model_revision: str
+    candidate_limit: int
+    max_length: int | None
+    explicit_warmup: bool
+
+
+@dataclass(frozen=True)
 class EvaluationReport:
     """Validated A/B/C report tied to one manifest and frozen golden snapshot."""
 
@@ -155,6 +164,7 @@ class EvaluationReport:
     candidate_k: int
     source_document_count: int
     variants: Mapping[str, VariantReport]
+    reranker_profile: RerankerProfile | None = None
 
     def __post_init__(self) -> None:
         if set(self.variants) != set(VARIANTS):
@@ -283,6 +293,9 @@ def _report_payload(report: EvaluationReport) -> dict[str, object]:
         "source_document_count": report.source_document_count,
         "k": report.k,
         "candidate_k": report.candidate_k,
+        "reranker_profile": (
+            asdict(report.reranker_profile) if report.reranker_profile else None
+        ),
         "variants": {
             name: {
                 "label": variant.label,
@@ -330,6 +343,16 @@ def _render_markdown(report: EvaluationReport) -> str:
         f"**Chunk snapshot SHA-256:** `{report.chunk_snapshot_sha256}`",
         f"**Query snapshot SHA-256:** `{report.query_snapshot_sha256}`",
         f"**Source documents:** {report.source_document_count}",
+    ]
+    if profile := report.reranker_profile:
+        limit = profile.max_length or "model default"
+        lines += [
+            f"**Reranker:** `{profile.model_id}@{profile.model_revision}`",
+            f"**Rerank candidates:** {profile.candidate_limit} "
+            f"| **Max tokens:** {limit}",
+            f"**Explicit model warmup:** {'yes' if profile.explicit_warmup else 'no'}",
+        ]
+    lines += [
         "",
         "| Variant | Recall@k | HitRate@k | MRR | Failures | p50 total ms | "
         "p95 total ms | BM25 corpus mean | Δ from previous |",
@@ -401,6 +424,7 @@ def run_retrieval(
     k: int = 5,
     candidate_k: int = 20,
     output_dir: Path,
+    reranker_profile: RerankerProfile | None = None,
 ) -> EvaluationReport:
     """Run all three variants on exactly the same ordered cases and snapshot."""
     _validate_run_inputs(variants, k, candidate_k)
@@ -475,6 +499,7 @@ def run_retrieval(
         candidate_k=candidate_k,
         source_document_count=dataset.source_document_count,
         variants=report_variants,
+        reranker_profile=reranker_profile,
     )
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
