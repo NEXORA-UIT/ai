@@ -1,7 +1,10 @@
 """Unit tests for BgeM3Embedder using fake/mock test doubles."""
 
 import math
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from typing import Any
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -170,6 +173,49 @@ def test_batching_exact_order_and_partial_last_batch():
         assert len(vec) == 1024
         norm = math.sqrt(sum(x * x for x in vec))
         assert abs(norm - 1.0) < 1e-4
+
+
+def test_inference_releases_model_lock_between_batches():
+    fake_model = FakeSentenceTransformer()
+    embedder = BgeM3Embedder(model=fake_model, batch_size=2)
+    model_lock = MagicMock(wraps=embedder._inference_lock)
+    model_lock.__enter__.side_effect = embedder._inference_lock.__enter__
+    model_lock.__exit__.side_effect = embedder._inference_lock.__exit__
+    embedder._inference_lock = model_lock
+
+    assert len(embedder.embed_texts(["a", "b", "c", "d", "e"])) == 5
+    assert model_lock.__exit__.call_count == 4  # validation and three batches
+
+
+def test_concurrent_first_call_shares_default_model(monkeypatch):
+    from src.embedding import embedder as module
+    from src.embedding.runtime import _cached_embedder, get_default_embedder
+
+    started = Event()
+    duplicate = Event()
+    release = Event()
+
+    def new_model():
+        if started.is_set():
+            duplicate.set()
+        started.set()
+        assert release.wait(timeout=5)
+        return object()
+
+    factory = MagicMock(side_effect=new_model)
+    monkeypatch.setattr(module, "BgeM3Embedder", factory)
+    _cached_embedder.cache_clear()
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first = pool.submit(get_default_embedder)
+            assert started.wait(timeout=5)
+            second = pool.submit(get_default_embedder)
+            duplicate.wait(timeout=0.3)
+            release.set()
+            assert first.result(timeout=5) is second.result(timeout=5)
+        factory.assert_called_once()
+    finally:
+        _cached_embedder.cache_clear()
 
 
 def test_token_budget_exceeded_before_inference():

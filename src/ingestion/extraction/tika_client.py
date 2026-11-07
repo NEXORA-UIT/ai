@@ -1,5 +1,6 @@
 """HTTP client for Apache Tika Server extraction."""
 
+import hashlib
 import os
 from http import HTTPStatus
 from pathlib import Path
@@ -8,12 +9,15 @@ from typing import Any
 import httpx
 
 from src.ingestion.exceptions import (
+    FileTooLargeError,
+    FileValidationError,
     TikaConnectionError,
     TikaExtractionError,
     TikaTimeoutError,
 )
 from src.ingestion.extraction.file_validator import (
     DEFAULT_MAX_FILE_SIZE_BYTES,
+    ValidatedFile,
     validate_file,
 )
 from src.ingestion.schemas import ExtractionResult
@@ -65,13 +69,35 @@ class TikaClient:
             file_path, max_size_bytes=self.max_file_size_bytes
         )
 
-        with open(path, "rb") as f:
-            content = f.read()
+        return self.extract_validated_file(ValidatedFile(path, mime_type, file_size))
+
+    def extract_validated_file(self, file: ValidatedFile) -> ExtractionResult:
+        """Read a validated file without repeating MIME sniffing."""
+        if file.size_bytes < 1:
+            raise FileValidationError("Validated file must be nonempty")
+        if file.size_bytes > self.max_file_size_bytes:
+            raise FileTooLargeError("Validated file exceeds the extraction size limit")
+        try:
+            with file.path.open("rb") as source:
+                content = source.read(file.size_bytes + 1)
+        except OSError as exc:
+            if isinstance(exc, FileNotFoundError) or file.path.is_dir():
+                raise FileValidationError(
+                    "File is unavailable after validation"
+                ) from exc
+            raise
+        if len(content) != file.size_bytes:
+            raise FileValidationError("File size changed after validation")
+        if (
+            file.sha256 is not None
+            and hashlib.sha256(content).hexdigest() != file.sha256
+        ):
+            raise FileValidationError("File content changed after validation")
 
         return self.extract_bytes(
             content=content,
-            file_name=path.name,
-            mime_type=mime_type,
+            file_name=file.path.name,
+            mime_type=file.mime_type,
         )
 
     def extract_bytes(

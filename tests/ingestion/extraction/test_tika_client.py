@@ -6,14 +6,45 @@ import httpx
 import pytest
 
 from src.ingestion.exceptions import (
+    FileValidationError,
     TikaConnectionError,
     TikaExtractionError,
     TikaTimeoutError,
 )
+from src.ingestion.extraction.file_validator import ValidatedFile, validate_file
 from src.ingestion.extraction.tika_client import TikaClient
 
 
 class TestTikaClient:
+    @pytest.mark.parametrize("replace_with_directory", [False, True])
+    def test_extraction_reports_a_missing_validated_file_as_validation_error(
+        self, tmp_path, replace_with_directory
+    ):
+        path = tmp_path / "document.txt"
+        path.write_bytes(b"content")
+        validated = ValidatedFile(*validate_file(path))
+        path.unlink()
+        if replace_with_directory:
+            path.mkdir()
+
+        with pytest.raises(FileValidationError, match="unavailable after validation"):
+            TikaClient().extract_validated_file(validated)
+
+    def test_extraction_rejects_file_growth_after_validation(
+        self, tmp_path, monkeypatch
+    ):
+        path = tmp_path / "document.txt"
+        path.write_bytes(b"content")
+        validated = ValidatedFile(*validate_file(path))
+        path.write_bytes(b"longer content")
+        send = MagicMock(side_effect=AssertionError("changed file must not reach Tika"))
+        client = TikaClient()
+        monkeypatch.setattr(client, "extract_bytes", send)
+
+        with pytest.raises(FileValidationError, match="changed after validation"):
+            client.extract_validated_file(validated)
+        send.assert_not_called()
+
     def test_successful_rmeta_extraction(self, monkeypatch):
         mock_response = MagicMock(spec=httpx.Response)
         mock_response.status_code = 200

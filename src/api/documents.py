@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import os
-import re
 import uuid
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import NoReturn
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -15,8 +14,6 @@ from src.api.config import (
     DATABASE_UNAVAILABLE_DETAIL,
     DEFAULT_UPLOAD_DIRECTORY,
     DOCUMENTS_ROUTE_PATH,
-    MAX_STORED_FILE_NAME_LENGTH,
-    UPLOAD_COPY_CHUNK_BYTES,
     UPLOAD_DIRECTORY_ENV,
     UPLOAD_FILE_TOO_LARGE_DETAIL,
 )
@@ -34,16 +31,14 @@ from src.ingestion.exceptions import (
 )
 from src.ingestion.extraction.file_validator import (
     DEFAULT_MAX_FILE_SIZE_BYTES,
-    validate_file,
 )
 from src.ingestion.pipeline import ingest_file_to_storage
 from src.ingestion.status import DocumentStatus
+from src.ingestion.upload import stage_upload
 
 router = APIRouter(prefix=API_V1_PREFIX, tags=["Documents"])
 
 MAX_UPLOAD_SIZE_BYTES = DEFAULT_MAX_FILE_SIZE_BYTES
-_DEFAULT_UPLOAD_FILENAME = "upload.txt"
-_CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]")
 _UPLOAD_FILE_FIELD = File(..., description="PDF, DOCX, or UTF-8 text file")
 _BOARD_ID_FIELD = Form(..., description="UUID of the caller-authorized Board")
 _UPLOADED_BY_FIELD = Form(..., description="UUID of the uploading user")
@@ -53,82 +48,6 @@ def _upload_directory() -> Path:
     configured = os.environ.get(UPLOAD_DIRECTORY_ENV)
     directory = Path(configured) if configured else DEFAULT_UPLOAD_DIRECTORY
     return directory if directory.is_absolute() else Path.cwd() / directory
-
-
-def _safe_filename(filename: str | None) -> str:
-    normalized = (filename or _DEFAULT_UPLOAD_FILENAME).replace("\\", "/")
-    basename = PurePosixPath(normalized).name
-    basename = _CONTROL_CHARACTERS.sub("", basename).strip().strip(".")
-    if not basename:
-        basename = _DEFAULT_UPLOAD_FILENAME
-
-    suffix = Path(basename).suffix
-    if len(basename) > MAX_STORED_FILE_NAME_LENGTH:
-        stem = basename[: -len(suffix)] if suffix else basename
-        stem_limit = MAX_STORED_FILE_NAME_LENGTH - len(suffix)
-        basename = f"{stem[:stem_limit]}{suffix}"
-    return basename
-
-
-def _validate_upload(path: Path) -> None:
-    try:
-        validate_file(path, max_size_bytes=MAX_UPLOAD_SIZE_BYTES)
-    except FileTooLargeError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=UPLOAD_FILE_TOO_LARGE_DETAIL,
-        ) from exc
-    except FileEmptyError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Uploaded file is empty",
-        ) from exc
-    except UnsupportedFileFormatError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Uploaded file format is not supported",
-        ) from exc
-    except FileValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Uploaded file failed validation",
-        ) from exc
-
-
-def _copy_upload(upload: UploadFile, staging_path: Path) -> None:
-    total_bytes = 0
-    with staging_path.open("xb") as destination:
-        while True:
-            chunk = upload.file.read(UPLOAD_COPY_CHUNK_BYTES)
-            if not chunk:
-                break
-            total_bytes += len(chunk)
-            if total_bytes > MAX_UPLOAD_SIZE_BYTES:
-                raise HTTPException(
-                    status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-                    detail=UPLOAD_FILE_TOO_LARGE_DETAIL,
-                )
-            destination.write(chunk)
-
-
-def _store_upload(upload: UploadFile, document_id: uuid.UUID) -> Path:
-    root = _upload_directory()
-    destination_directory = root / str(document_id)
-    filename = _safe_filename(upload.filename)
-    suffix = Path(filename).suffix
-    staging_path = root / f".{document_id}.staging{suffix}"
-    final_path = destination_directory / filename
-
-    try:
-        root.mkdir(parents=True, exist_ok=True)
-        _copy_upload(upload, staging_path)
-        _validate_upload(staging_path)
-        destination_directory.mkdir(parents=True, exist_ok=False)
-        os.replace(staging_path, final_path)
-        return final_path
-    except Exception:
-        staging_path.unlink(missing_ok=True)
-        raise
 
 
 def _raise_ingestion_http_error(exc: Exception) -> NoReturn:
@@ -218,9 +137,15 @@ def upload_document(
     """Persist the upload and run the existing ingestion pipeline synchronously."""
     document_id = uuid.uuid4()
     try:
-        file_path = _store_upload(file, document_id)
-    except HTTPException:
-        raise
+        staged = stage_upload(
+            file.file,
+            file.filename,
+            root=_upload_directory(),
+            document_id=document_id,
+            max_size_bytes=MAX_UPLOAD_SIZE_BYTES,
+        )
+    except FileValidationError as exc:
+        _raise_ingestion_http_error(exc)
     except OSError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -229,7 +154,7 @@ def upload_document(
 
     try:
         persisted_id, embedded_document = ingest_file_to_storage(
-            file_path=file_path,
+            file_path=staged,
             board_id=board_id,
             uploaded_by=uploaded_by,
             document_id=document_id,

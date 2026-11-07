@@ -1,5 +1,6 @@
 """Unit tests for pipeline storage orchestration and CLI safety."""
 
+import hashlib
 import uuid
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -51,7 +52,7 @@ class TestPipelineOrchestration:
 
     @patch("src.ingestion.pipeline.validate_file")
     @patch("src.ingestion.pipeline.extract_clean_chunk_and_embed")
-    def test_pipeline_success_lifecycle(self, mock_extract, mock_validate):
+    def test_pipeline_success_lifecycle(self, mock_extract, mock_validate, monkeypatch):
         ext, clean, chunked, emb = dummy_artifacts()
         mock_validate.return_value = (
             Path("tests/fixtures/synthetic_smoke_doc.txt"),
@@ -59,6 +60,13 @@ class TestPipelineOrchestration:
             100,
         )
         mock_extract.return_value = (ext, clean, chunked, emb)
+        with mock_validate.return_value[0].open("rb") as source:
+            expected_digest = hashlib.sha256(source.read()).hexdigest()
+        monkeypatch.setattr(
+            Path,
+            "read_bytes",
+            MagicMock(side_effect=AssertionError("use streamed hash")),
+        )
 
         mock_storage = MagicMock()
         target_token = uuid.uuid4()
@@ -82,6 +90,10 @@ class TestPipelineOrchestration:
 
         # Verify claim was called first
         mock_storage.claim_or_create_document.assert_called_once()
+        assert (
+            mock_storage.claim_or_create_document.call_args.kwargs["checksum"]
+            == expected_digest
+        )
         # Verify save was called with token
         saved_call = mock_storage.save_embedded_document.call_args[1]
         assert saved_call["document_id"] == "doc-123"
@@ -129,7 +141,7 @@ class TestPipelineOrchestration:
     @patch("src.ingestion.pipeline.validate_file")
     @patch("src.ingestion.pipeline.extract_clean_chunk_and_embed")
     def test_pipeline_failure_logging_error_does_not_mask_original_error(
-        self, mock_extract, mock_validate
+        self, mock_extract, mock_validate, caplog
     ):
         ext, _, _, _ = dummy_artifacts()
         mock_validate.return_value = (
@@ -146,7 +158,7 @@ class TestPipelineOrchestration:
         )
         # DB connection drops during failure logging
         mock_storage.mark_document_failed.side_effect = DatabaseConnectionError(
-            "DB disconnected"
+            "DB disconnected, private connection info"
         )
 
         with pytest.raises(TikaExtractionError, match="Original root error"):
@@ -156,6 +168,8 @@ class TestPipelineOrchestration:
                 uploaded_by=uuid.uuid4(),
                 storage=mock_storage,
             )
+        assert "Could not record ingestion failure" in caplog.text
+        assert "private connection info" not in caplog.text
 
 
 class TestCliSafeInfo:

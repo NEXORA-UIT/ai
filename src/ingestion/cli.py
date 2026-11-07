@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
 import uuid
@@ -30,6 +31,7 @@ from src.ingestion.console_config import (
 )
 from src.ingestion.persistence.storage import DocumentStorage
 from src.ingestion.pipeline import ingest_file_to_storage
+from src.local_env import load_local_env
 
 
 def parse_safe_db_info(url: str | None) -> dict[str, Any]:
@@ -205,30 +207,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _load_env_if_present() -> None:
-    """Load key-value pairs from .env into os.environ if not already present."""
-    import os
-
-    env_path = Path(__file__).parent.parent.parent / ".env"
-    if env_path.is_file():
-        for line in env_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            k = k.strip()
-            v = v.strip().strip("'\"")
-            if k and k not in os.environ:
-                os.environ[k] = v
-
-
 def main(argv: list[str] | None = None) -> int:
     """CLI main entry point."""
-    _load_env_if_present()
+    load_local_env(Path(__file__).parent.parent.parent / ".env")
     parser = build_parser()
     args = parser.parse_args(argv)
-
-    import os
 
     db_url = (
         args.database_url

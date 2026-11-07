@@ -1,7 +1,12 @@
 """Unit tests for extract_and_clean pipeline and CLI preview runner."""
 
+import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from src.chunking.tokenizer import WhitespaceTokenCounter
+from src.ingestion.exceptions import FileValidationError
 from src.ingestion.pipeline import (
     extract_and_clean,
     extract_clean_and_chunk,
@@ -12,6 +17,111 @@ from src.ingestion.schemas import EmbeddedChunk, ExtractionResult
 
 
 class TestPipeline:
+    @pytest.mark.parametrize("mutate_during_claim", [False, True])
+    def test_ingest_checks_local_file_once_before_tika(
+        self, tmp_path, mutate_during_claim
+    ):
+        from src.ingestion.pipeline import ingest_file_to_storage
+
+        file_path = tmp_path / "sample.txt"
+        file_path.write_text("Approved source.", encoding="utf-8")
+        extraction = ExtractionResult(
+            raw_text="Approved source.",
+            file_name=file_path.name,
+            mime_type="text/plain",
+            metadata={},
+        )
+        storage = MagicMock()
+
+        def claim(**_kwargs):
+            if mutate_during_claim:
+                file_path.write_bytes(b"Changed! source.")
+            return "document", "token"
+
+        storage.claim_or_create_document.side_effect = claim
+        embedder = MagicMock(model_name="BAAI/bge-m3", revision="test", dimension=1024)
+        embedder.embed_chunks.side_effect = lambda chunks, **_kwargs: [
+            EmbeddedChunk(chunk=chunk, dense_embedding=[0.05] * 1024)
+            for chunk in chunks
+        ]
+        with (
+            patch(
+                "src.ingestion.extraction.tika_client.validate_file",
+                side_effect=AssertionError("file was already validated before claim"),
+            ),
+            patch(
+                "src.ingestion.extraction.tika_client.TikaClient.extract_bytes"
+            ) as tika,
+        ):
+            tika.return_value = extraction
+
+            def ingest():
+                return ingest_file_to_storage(
+                    file_path,
+                    "11111111-1111-4111-8111-111111111111",
+                    "22222222-2222-4222-8222-222222222222",
+                    storage=storage,
+                    embedder=embedder,
+                    token_counter=WhitespaceTokenCounter(),
+                )
+
+            if mutate_during_claim:
+                with pytest.raises(FileValidationError, match="content changed"):
+                    ingest()
+                tika.assert_not_called()
+                storage.mark_document_failed.assert_called_once()
+                return
+            doc_id, _ = ingest()
+
+        assert doc_id == "document"
+        tika.assert_called_once_with(
+            content=b"Approved source.", file_name="sample.txt", mime_type="text/plain"
+        )
+
+    def test_default_model_is_shared_with_search_across_uploads(self, tmp_path):
+        from src.embedding.runtime import _cached_embedder
+        from src.retrieval.dense import get_default_embedder
+
+        file_path = tmp_path / "sample.txt"
+        file_path.write_text("Approved source.", encoding="utf-8")
+        extraction = ExtractionResult(
+            raw_text="Approved source.",
+            file_name=file_path.name,
+            mime_type="text/plain",
+            metadata={},
+            page_count=None,
+            has_form_feeds=False,
+        )
+        _cached_embedder.cache_clear()
+        try:
+            with (
+                patch("src.ingestion.pipeline.TikaClient") as tika,
+                patch("src.embedding.embedder.BgeM3Embedder") as factory,
+            ):
+                tika.return_value.extract_file.return_value = extraction
+                model = factory.return_value
+                model.model_name = "BAAI/bge-m3"
+                model.revision = "test-revision"
+                model.dimension = 1024
+                model.embed_chunks.side_effect = lambda chunks, **_: [
+                    EmbeddedChunk(chunk=chunk, dense_embedding=[0.05] * 1024)
+                    for chunk in chunks
+                ]
+                counter = WhitespaceTokenCounter()
+                extract_clean_chunk_and_embed(file_path, token_counter=counter)
+                extract_clean_chunk_and_embed(
+                    file_path, token_counter=counter, batch_size=8
+                )
+
+                assert get_default_embedder() is model
+                factory.assert_called_once()
+                assert [
+                    call.kwargs["batch_size"]
+                    for call in model.embed_chunks.call_args_list
+                ] == [2, 8]
+        finally:
+            _cached_embedder.cache_clear()
+
     def test_extract_and_clean_success(self, tmp_path):
         test_file = tmp_path / "sample.txt"
         test_file.write_text(
@@ -115,8 +225,6 @@ class TestPipeline:
         assert "[ERROR]" in captured.err
 
     def test_extract_clean_and_chunk_success(self, tmp_path):
-        from src.chunking.tokenizer import WhitespaceTokenCounter
-
         test_file = tmp_path / "chunk_pipeline.txt"
         test_file.write_text("Đoạn một.\n\nĐoạn hai.", encoding="utf-8")
 
@@ -173,6 +281,7 @@ class TestPipeline:
                     "--file",
                     str(test_file),
                     "--chunk",
+                    "--whitespace-tokenizer",
                     "--chunk-size",
                     "512",
                     "--chunk-overlap",
@@ -243,6 +352,7 @@ class TestPipeline:
             extraction, cleaned, chunked, embedded = extract_clean_chunk_and_embed(
                 file_path=test_file,
                 embedder=mock_embedder,
+                token_counter=WhitespaceTokenCounter(),
             )
 
             assert extraction.file_name == "embed_doc.txt"
@@ -255,7 +365,8 @@ class TestPipeline:
                 embedded.chunks[0].chunk.content == "Đoạn một cho pipeline embedding."
             )
 
-    def test_preview_cli_embed_flag_success(self, tmp_path, monkeypatch, capsys):
+    @pytest.mark.parametrize("flags", [(), ("--json",), ("--json", "--export-vectors")])
+    def test_preview_cli_embed_flag_success(self, tmp_path, monkeypatch, capsys, flags):
         test_file = tmp_path / "preview_embed.txt"
         test_file.write_text("Tài liệu thử nghiệm embedding CLI.", encoding="utf-8")
 
@@ -293,6 +404,7 @@ class TestPipeline:
                     str(test_file),
                     "--embed",
                     "--whitespace-tokenizer",
+                    *flags,
                 ],
             )
 
@@ -300,9 +412,20 @@ class TestPipeline:
             assert exit_code == 0
 
             captured = capsys.readouterr()
-            assert "DENSE EMBEDDING PREVIEW" in captured.out
-            assert "Total Vectors:     1" in captured.out
-            assert "Vector Dimension:  1024" in captured.out
+            if "--json" in flags:
+                data = json.loads(captured.out)
+                assert data["embedding"]["dimension"] == 1024
+                assert data["embedding"]["total_embedded_chunks"] == 1
+                chunk = data["embedding"]["chunks"][0]
+                assert ("dense_embedding" in chunk) == ("--export-vectors" in flags)
+                if "--export-vectors" in flags:
+                    assert len(chunk["dense_embedding"]) == 1024
+            else:
+                assert "DENSE EMBEDDING PREVIEW" in captured.out
+                assert "Total Vectors:     1" in captured.out
+                assert "Vector Dimension:  1024" in captured.out
+            mock_embedder.load_model.assert_called_once_with()
+            mock_embedder._get_model.assert_not_called()
 
     def test_preview_cli_rejects_invalid_batch_size_early(
         self, tmp_path, monkeypatch, capsys

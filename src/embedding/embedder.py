@@ -1,5 +1,6 @@
 """Embedder protocol and BAAI/bge-m3 sentence-transformers implementation."""
 
+from threading import Lock
 from typing import Any, Protocol
 
 import numpy as np
@@ -95,6 +96,7 @@ class BgeM3Embedder:
         self._batch_size = batch_size
         self._max_seq_length = max_seq_length
         self._model = model
+        self._inference_lock = Lock()
 
     @property
     def model_name(self) -> str:
@@ -115,6 +117,11 @@ class BgeM3Embedder:
     @property
     def batch_size(self) -> int:
         return self._batch_size
+
+    def load_model(self) -> None:
+        """Load the pinned weights without running an inference batch."""
+        with self._inference_lock:
+            self._get_model()
 
     def _get_model(self) -> Any:
         """Lazily initialize the SentenceTransformer model if not already loaded."""
@@ -177,53 +184,24 @@ class BgeM3Embedder:
                     "Embedder requires non-empty text."
                 )
 
-        model = self._get_model()
-
-        # Validate model tokenizer and sequence limit
-        tokenizer = getattr(model, "tokenizer", None)
-        if tokenizer is None or not hasattr(tokenizer, "encode"):
-            raise ModelLoadError(
-                "Embedding model does not provide a valid tokenizer for token "
-                "budget validation."
-            )
-
-        model_limit = getattr(model, "max_seq_length", None)
-        if not isinstance(model_limit, int) or model_limit < 1:
-            raise ModelLoadError(
-                "Embedding model does not provide a valid integer max_seq_length "
-                f"(got {model_limit!r})."
-            )
-
-        effective_limit = min(self._max_seq_length, model_limit)
-
-        # Validate token count per input text using model tokenizer
-        for idx, text in enumerate(texts):
-            # Count tokens including special tokens (<s>, </s>) without truncation
-            token_ids = tokenizer.encode(
-                text,
-                add_special_tokens=True,
-                truncation=False,
-                padding=False,
-            )
-            if len(token_ids) > effective_limit:
-                raise TokenBudgetExceededError(
-                    f"Input text at index {idx} exceeds maximum token budget: "
-                    f"{len(token_ids)} tokens > {effective_limit} max allowed tokens "
-                    f"(configured: {self._max_seq_length}, model limit: {model_limit})."
-                )
+        with self._inference_lock:
+            model = self._get_model()
+            self._validate_token_budget(model, texts)
 
         # Batch inference
         results: list[list[float]] = []
         for start_idx in range(0, len(texts), eff_batch_size):
             batch_texts = texts[start_idx : start_idx + eff_batch_size]
             try:
-                raw_output = model.encode(
-                    batch_texts,
-                    batch_size=len(batch_texts),
-                    normalize_embeddings=DEFAULT_NORMALIZE_EMBEDDINGS,
-                    show_progress_bar=False,
-                    convert_to_numpy=True,
-                )
+                # Allow queries to use the shared model between upload batches.
+                with self._inference_lock:
+                    raw_output = model.encode(
+                        batch_texts,
+                        batch_size=len(batch_texts),
+                        normalize_embeddings=DEFAULT_NORMALIZE_EMBEDDINGS,
+                        show_progress_bar=False,
+                        convert_to_numpy=True,
+                    )
             except Exception as exc:
                 raise InferenceError(
                     f"Inference failed during batch encoding: {exc}"
@@ -270,6 +248,36 @@ class BgeM3Embedder:
             )
 
         return results
+
+    def _validate_token_budget(self, model: Any, texts: list[str]) -> None:
+        tokenizer = getattr(model, "tokenizer", None)
+        if tokenizer is None or not hasattr(tokenizer, "encode"):
+            raise ModelLoadError(
+                "Embedding model does not provide a valid tokenizer for token "
+                "budget validation."
+            )
+
+        model_limit = getattr(model, "max_seq_length", None)
+        if not isinstance(model_limit, int) or model_limit < 1:
+            raise ModelLoadError(
+                "Embedding model does not provide a valid integer max_seq_length "
+                f"(got {model_limit!r})."
+            )
+        effective_limit = min(self._max_seq_length, model_limit)
+
+        for idx, text in enumerate(texts):
+            token_ids = tokenizer.encode(
+                text,
+                add_special_tokens=True,
+                truncation=False,
+                padding=False,
+            )
+            if len(token_ids) > effective_limit:
+                raise TokenBudgetExceededError(
+                    f"Input text at index {idx} exceeds maximum token budget: "
+                    f"{len(token_ids)} tokens > {effective_limit} max allowed tokens "
+                    f"(configured: {self._max_seq_length}, model limit: {model_limit})."
+                )
 
     def embed_chunks(
         self, chunks: list[Chunk], batch_size: int | None = None

@@ -1,6 +1,7 @@
 """Validation rules and content sniffing for input documents."""
 
 import mimetypes
+from dataclasses import dataclass
 from pathlib import Path
 
 from src.ingestion.exceptions import (
@@ -18,6 +19,16 @@ SUPPORTED_MIME_TYPES = {
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".txt": "text/plain",
 }
+
+
+@dataclass(frozen=True)
+class ValidatedFile:
+    """Metadata from the local file validation boundary."""
+
+    path: Path
+    mime_type: str
+    size_bytes: int
+    sha256: str | None = None
 
 
 def validate_file(

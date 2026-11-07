@@ -29,7 +29,7 @@ def test_demo_flow_upload_then_search_is_board_scoped_and_public(
     monkeypatch.setenv("AI_UPLOAD_DIRECTORY", str(tmp_path / "uploads"))
 
     def fake_ingest_file_to_storage(**kwargs):
-        file_path = Path(kwargs["file_path"])
+        file_path = kwargs["file_path"].path
         document = {
             "document_id": str(kwargs["document_id"]),
             "board_id": str(kwargs["board_id"]),

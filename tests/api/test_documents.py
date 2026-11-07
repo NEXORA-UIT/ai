@@ -54,7 +54,10 @@ def test_upload_persists_file_and_returns_public_ingestion_summary(
         "chunk_count": 3,
         "total_tokens": 128,
     }
-    stored_path = observed["file_path"]
+    staged = observed["file_path"]
+    assert staged.mime_type == "text/plain"
+    assert staged.size_bytes == len(b"BOARD_SCOPED_CONTENT")
+    stored_path = staged.path
     assert stored_path == (
         tmp_path
         / "uploads"
@@ -90,6 +93,7 @@ def test_upload_requires_service_key(api_client: TestClient) -> None:
 def test_upload_rejects_invalid_files_before_ingestion(
     api_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
     filename: str,
     content: bytes,
     status_code: int,
@@ -102,6 +106,7 @@ def test_upload_rejects_invalid_files_before_ingestion(
     response = _upload(api_client, filename, content)
 
     assert response.status_code == status_code
+    assert list((tmp_path / "uploads").iterdir()) == []
 
 
 def test_upload_rejects_file_above_configured_limit(

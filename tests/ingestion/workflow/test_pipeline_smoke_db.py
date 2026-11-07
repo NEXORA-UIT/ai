@@ -8,6 +8,7 @@ import pytest
 from src.database import probe_pgvector
 from src.ingestion.persistence.storage import DocumentStorage
 from src.ingestion.pipeline import ingest_file_to_storage
+from src.retrieval import search_documents
 
 
 @pytest.fixture(autouse=True)
@@ -52,6 +53,17 @@ def test_end_to_end_smoke_ingestion():
         first_chunk = stored.chunks[0]
         assert len(first_chunk.embedding) == 1024
         assert first_chunk.content.startswith("DỰ ÁN NEXORA")
+
+        # Retrieve the ingested evidence using real BGE-M3 and CPU reranking.
+        question = "Dự án Nexora quản lý công việc như thế nào?"
+        result = search_documents(question, board_id, storage=storage)
+        assert result.chunks
+        assert {chunk.document_id for chunk in result.chunks} == {doc_id}
+        assert all(
+            chunk.file_name == "synthetic_smoke_doc.txt" for chunk in result.chunks
+        )
+        other_board = search_documents(question, uuid.uuid4(), storage=storage)
+        assert other_board.chunks == ()
     finally:
         # Cleanup test document
         conn = storage.get_connection()
