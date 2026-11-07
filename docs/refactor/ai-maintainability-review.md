@@ -73,8 +73,7 @@ Lượt xác minh cuối có 390 test offline và 30 test tích hợp qua. Môi 
 tích hợp riêng sử dụng PostgreSQL/pgvector, Tika, BGE-M3 và CPU reranker.
 Image demo build thành công từ lockfile và qua smoke test CLI/OpenAPI.
 Live DeepSeek, chất lượng trên tài liệu thật và p95 dưới tải là các phép đo
-riêng. Workflow GitHub Actions đã có trong working tree và chưa chạy trên
-runner GitHub.
+riêng. Các lệnh kiểm tra local hiện được ghi trong [README](../../README.md#run-the-development-checks).
 
 Thiết lập Docker được bỏ khỏi repo AI sau lượt xác minh trên. Hướng dẫn hiện
 hành dùng [Uvicorn](../guides/api/swagger-demo.md) và

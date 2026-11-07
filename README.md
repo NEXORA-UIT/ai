@@ -63,9 +63,8 @@ Open `http://127.0.0.1:8000/health`. The authenticated upload and search routes 
 
 ## Run the development checks
 
-GitHub Actions runs Ruff and the offline test suite on pushes and pull requests.
-Use the same commands locally. The offline test suite can run with an empty
-Hugging Face cache.
+Run Ruff and the offline test suite locally. The offline test suite can run
+with an empty Hugging Face cache.
 
 ```powershell
 uv run --locked ruff check .
