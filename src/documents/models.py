@@ -3,9 +3,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.chunking.config import CHUNKING_VERSION
+from src.documents.versions import CHUNKING_VERSION, DEFAULT_CLEANING_VERSION
 from src.embedding.config import DEFAULT_DENSE_DIMENSION
-from src.ingestion.config import DEFAULT_CLEANING_VERSION
 
 
 @dataclass(frozen=True)

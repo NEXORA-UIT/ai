@@ -6,6 +6,16 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from src.answering.answer import (
+    AnswerProviderError,
+    EvidenceScopeError,
+)
+from src.answering.service import (
+    AnswerConfigurationError,
+    AnswerGenerationError,
+    AnswerRetrievalError,
+    answer_question,
+)
 from src.api.config import (
     ANSWER_ROUTE_PATH,
     API_V1_PREFIX,
@@ -13,17 +23,7 @@ from src.api.config import (
 )
 from src.api.schemas import AnswerResponse, CitationResponse, SearchRequest
 from src.api.security import require_service_key
-from src.generation.answer import (
-    AnswerProviderError,
-    EvidenceScopeError,
-)
-from src.generation.service import (
-    AnswerConfigurationError,
-    AnswerGenerationError,
-    AnswerRetrievalError,
-    answer_question,
-)
-from src.ingestion.exceptions import DatabaseConnectionError
+from src.persistence.errors import DatabaseConnectionError
 
 router = APIRouter(prefix=API_V1_PREFIX, tags=["Answers"])
 logger = logging.getLogger("uvicorn.error")

@@ -86,17 +86,17 @@ Không yêu cầu kết nối cơ sở dữ liệu (`DATABASE_URL`).
 
 ### Xem tóm tắt trên Console:
 ```powershell
-python -m src.ingestion.preview --file path/to/document.pdf
+python -m scripts.ingestion.preview --file path/to/document.pdf
 ```
 
 ### Xuất kết quả dạng JSON:
 ```powershell
-python -m src.ingestion.preview --file path/to/document.pdf --json
+python -m scripts.ingestion.preview --file path/to/document.pdf --json
 ```
 
 ### Xem kèm toàn bộ văn bản thô (raw):
 ```powershell
-python -m src.ingestion.preview --file path/to/document.pdf --raw
+python -m scripts.ingestion.preview --file path/to/document.pdf --raw
 ```
 
 ---

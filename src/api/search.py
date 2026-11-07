@@ -13,7 +13,7 @@ from src.api.config import (
 )
 from src.api.schemas import SearchChunkResponse, SearchRequest, SearchResponse
 from src.api.security import require_service_key
-from src.ingestion.exceptions import DatabaseConnectionError
+from src.persistence.errors import DatabaseConnectionError
 from src.retrieval.schemas import SearchResult
 
 router = APIRouter(prefix=API_V1_PREFIX, tags=["Retrieval"])

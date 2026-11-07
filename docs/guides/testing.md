@@ -11,7 +11,7 @@ Run from the AI repository root in a separate PowerShell session. Set
 
 ```powershell
 $env:DATABASE_URL = $env:TEST_DATABASE_URL
-uv run --locked python -m src.ingestion.cli --bootstrap-db --confirm-db-name nexora_ai_retrieval_test
+uv run --locked python -m scripts.db.bootstrap --confirm-db-name nexora_ai_retrieval_test
 if ($LASTEXITCODE -ne 0) { throw "Test database bootstrap failed" }
 Invoke-RestMethod "$env:TIKA_SERVER_ENDPOINT/version"
 uv run --locked pytest -q -m "integration or database"

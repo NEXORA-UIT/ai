@@ -4,7 +4,7 @@ import math
 
 import psycopg
 
-from src.database_config import DATABASE_PROBE_CONNECT_TIMEOUT_SECONDS
+from src.persistence.config import DATABASE_PROBE_CONNECT_TIMEOUT_SECONDS
 
 
 class MissingVectorExtension(RuntimeError):

@@ -5,15 +5,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.chunking.tokenizer import WhitespaceTokenCounter
+from scripts.ingestion.preview import main
+from src.documents.models import EmbeddedChunk, ExtractionResult
+from src.ingestion.chunking.tokenizer import WhitespaceTokenCounter
 from src.ingestion.exceptions import FileValidationError
 from src.ingestion.pipeline import (
     extract_and_clean,
     extract_clean_and_chunk,
     extract_clean_chunk_and_embed,
 )
-from src.ingestion.preview import main
-from src.ingestion.schemas import EmbeddedChunk, ExtractionResult
 
 
 class TestPipeline:

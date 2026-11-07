@@ -10,8 +10,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 @pytest.mark.parametrize(
     ("module", "expected_flag"),
     [
+        ("scripts.db.bootstrap", "--confirm-db-name"),
+        ("scripts.ingestion.cli", "--inspect"),
         ("src.ingestion.cli", "--bootstrap-db"),
         ("src.ingestion.preview", "--export-vectors"),
+        ("scripts.ingestion.preview", "--export-vectors"),
         ("evaluation.run_retrieval_cli", "--expected-database-name"),
     ],
 )

@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from uuid import UUID
 
-from src.generation.config import DEFAULT_CONTEXT_CHAR_LIMIT
-from src.generation.context import build_grounded_prompt
-from src.generation.schemas import AnswerClient, AnswerResult, Citation
+from src.answering.config import DEFAULT_CONTEXT_CHAR_LIMIT
+from src.answering.context import build_grounded_prompt
+from src.answering.schemas import AnswerClient, AnswerResult, Citation
 from src.retrieval.schemas import RerankedChunk
 from src.validation import BOARD_ID_INVALID_UUID, QUESTION_TEXT_REQUIRED
 

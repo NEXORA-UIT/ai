@@ -2,9 +2,9 @@
 
 import pytest
 
-from src.chunking.chunker import chunk_document
-from src.chunking.tokenizer import BgeM3Tokenizer
-from src.ingestion.schemas import CleanedDocument
+from src.documents.models import CleanedDocument
+from src.ingestion.chunking.chunker import chunk_document
+from src.ingestion.chunking.tokenizer import BgeM3Tokenizer
 
 
 @pytest.mark.integration

@@ -19,9 +19,8 @@ from src.api.config import (
 )
 from src.api.schemas import DocumentUploadResponse
 from src.api.security import require_service_key
+from src.documents.status import DocumentStatus
 from src.ingestion.exceptions import (
-    DatabaseConnectionError,
-    DocumentProcessingConflictError,
     FileEmptyError,
     FileTooLargeError,
     FileValidationError,
@@ -33,8 +32,12 @@ from src.ingestion.extraction.file_validator import (
     DEFAULT_MAX_FILE_SIZE_BYTES,
 )
 from src.ingestion.pipeline import ingest_file_to_storage
-from src.ingestion.status import DocumentStatus
 from src.ingestion.upload import stage_upload
+from src.persistence.errors import (
+    DatabaseConnectionError,
+    DocumentProcessingConflictError,
+    StorageError,
+)
 
 router = APIRouter(prefix=API_V1_PREFIX, tags=["Documents"])
 
@@ -83,7 +86,7 @@ def _raise_ingestion_http_error(exc: Exception) -> NoReturn:
         )
     elif isinstance(exc, TikaError):
         code, detail = (status.HTTP_502_BAD_GATEWAY, "Document extraction failed")
-    elif isinstance(exc, IngestionError):
+    elif isinstance(exc, (IngestionError, StorageError)):
         code, detail = (
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "Document could not be processed",

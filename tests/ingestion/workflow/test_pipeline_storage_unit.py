@@ -7,13 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.ingestion.cli import parse_safe_db_info
-from src.ingestion.exceptions import (
-    DatabaseConnectionError,
-    TikaExtractionError,
-)
-from src.ingestion.pipeline import ingest_file_to_storage
-from src.ingestion.schemas import (
+from scripts.ingestion.cli import parse_safe_db_info
+from src.documents.models import (
     Chunk,
     ChunkedDocument,
     CleanedDocument,
@@ -21,7 +16,10 @@ from src.ingestion.schemas import (
     EmbeddedDocument,
     ExtractionResult,
 )
+from src.ingestion.exceptions import TikaExtractionError
+from src.ingestion.pipeline import ingest_file_to_storage
 from src.persistence.document_storage import sanitize_error_message
+from src.persistence.errors import DatabaseConnectionError
 
 
 def dummy_artifacts():

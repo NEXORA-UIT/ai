@@ -89,14 +89,20 @@ def test_adapters_use_dense_sparse_rrf_and_reranker_without_copying_ranking(
     )
     monkeypatch.setattr(ranking, "fuse_rrf", fake_rrf)
     monkeypatch.setattr(ranking, "rerank_chunks", fake_rerank)
-    variants = adapters.build_retrieval_variants(embedder=embedder, storage=object())
+    storage = object()
+    variants = adapters.build_retrieval_variants(embedder=embedder, storage=storage)
 
     dense = variants["A"](_request("A", 3))
     hybrid = variants["B"](_request("B", 20))
     reranked = variants["C"](_request("C", 20))
     case = _request("C", 20).case
     evidence = runtime.retrieve_reranked_chunks(
-        case.question, case.board_id, top_k=3, candidate_k=20, embedder=embedder
+        case.question,
+        case.board_id,
+        top_k=3,
+        candidate_k=20,
+        embedder=embedder,
+        storage=storage,
     )
 
     assert dense.chunk_ids == ("dense-1",)

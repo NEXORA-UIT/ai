@@ -3,9 +3,9 @@
 import re
 import unicodedata
 
-from src.ingestion.config import DEFAULT_CLEANING_VERSION
+from src.documents.models import CleanedDocument, ExtractionResult, PageSpan
+from src.documents.versions import DEFAULT_CLEANING_VERSION
 from src.ingestion.exceptions import EmptyDocumentError
-from src.ingestion.schemas import CleanedDocument, ExtractionResult, PageSpan
 
 CLEANING_VERSION = DEFAULT_CLEANING_VERSION
 

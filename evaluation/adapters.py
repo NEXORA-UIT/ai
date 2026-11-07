@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from time import perf_counter
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 from evaluation.run_retrieval import (
     RetrievalCallable,
     RetrievalOutput,
     RetrievalRequest,
 )
-from src.embedding.embedder import Embedder
 from src.persistence.postgres import ConnectionProvider
 from src.reranking.cross_encoder import Reranker
 from src.retrieval.hybrid import search_candidates
-from src.retrieval.ranking import fuse_candidates, rerank_fused_candidates
+from src.retrieval.workflow import retrieve_hybrid
+
+if TYPE_CHECKING:
+    from src.embedding.embedder import Embedder
 
 
 def build_retrieval_variants(
@@ -41,33 +42,20 @@ def build_retrieval_variants(
         )
 
     def hybrid(request: RetrievalRequest, *, rerank: bool) -> RetrievalOutput:
-        result = search_candidates(
+        result = retrieve_hybrid(
             request.case.question,
             request.case.board_id,
+            top_k=request.k,
             candidate_k=request.candidate_k,
+            run_rerank=rerank,
             embedder=embedder,
             storage=storage,
+            reranker=reranker,
         )
-        timings = dict(result.stage_latencies_ms)
-        started = perf_counter()
-        fused = fuse_candidates(result.candidates, candidate_k=request.candidate_k)
-        timings["rrf"] = (perf_counter() - started) * 1000
-        if rerank:
-            started = perf_counter()
-            selected = rerank_fused_candidates(
-                request.case.question,
-                UUID(request.case.board_id),
-                fused,
-                top_k=request.k,
-                reranker=reranker,
-            )
-            timings["rerank"] = (perf_counter() - started) * 1000
-            chunk_ids = tuple(hit.source.chunk_id for hit in selected)
-        else:
-            chunk_ids = tuple(hit.source.chunk_id for hit in fused)
+        hits = result.reranked if rerank else result.fused
         return RetrievalOutput(
-            chunk_ids=chunk_ids,
-            stage_latencies_ms=timings,
+            chunk_ids=tuple(hit.source.chunk_id for hit in hits),
+            stage_latencies_ms=result.stage_latencies_ms,
             bm25_corpus_size=result.bm25_corpus_size,
         )
 

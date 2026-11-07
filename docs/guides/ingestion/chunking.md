@@ -59,22 +59,22 @@ Mỗi chunk được lưu trữ dưới dạng immutable dataclass `Chunk`:
 
 ### Xem kết quả chunking trên Console:
 ```powershell
-python -m src.ingestion.preview --file path/to/document.pdf --chunk
+python -m scripts.ingestion.preview --file path/to/document.pdf --chunk
 ```
 
 ### Tùy chỉnh kích thước chunk và overlap:
 ```powershell
-python -m src.ingestion.preview --file path/to/document.docx --chunk --chunk-size 256 --chunk-overlap 32
+python -m scripts.ingestion.preview --file path/to/document.docx --chunk --chunk-size 256 --chunk-overlap 32
 ```
 
 ### Xuất kết quả chi tiết dạng JSON (chứa đầy đủ nội dung, offset và revision):
 ```powershell
-python -m src.ingestion.preview --file path/to/document.pdf --chunk --json
+python -m scripts.ingestion.preview --file path/to/document.pdf --chunk --json
 ```
 
 ### Dùng tokenizer whitespace (chế độ thử nghiệm offline nhanh, không cần tải tokenizer):
 ```powershell
-python -m src.ingestion.preview --file path/to/document.txt --chunk --whitespace-tokenizer
+python -m scripts.ingestion.preview --file path/to/document.txt --chunk --whitespace-tokenizer
 ```
 
 ---

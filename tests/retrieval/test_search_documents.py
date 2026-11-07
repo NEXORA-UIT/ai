@@ -10,6 +10,7 @@ from uuid import UUID
 import pytest
 
 from src.retrieval import SearchChunk, SearchResult, search_documents
+from src.retrieval.hybrid import CandidateSearch
 from src.retrieval.schemas import (
     FusedChunk,
     HybridCandidates,
@@ -21,6 +22,10 @@ from src.retrieval.schemas import (
 
 _BOARD_A = "11111111-1111-4111-8111-111111111111"
 _STORAGE_KEY = "private://bucket/internal/document.pdf"
+
+
+def _candidate_search(candidates: HybridCandidates) -> CandidateSearch:
+    return CandidateSearch(candidates, {"embedding": 0, "dense": 0, "bm25": 0})
 
 
 def _source(chunk_id: str = "chunk-a") -> SourceChunk:
@@ -62,14 +67,14 @@ def _reranked(chunk_id: str = "chunk-a") -> RerankedChunk:
 def test_facade_forwards_shared_scope_and_candidate_pool_to_each_stage(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = import_module("src.retrieval.search_documents")
+    module = import_module("src.retrieval.workflow")
     candidates = HybridCandidates(dense=[_retrieved()], sparse=[])
     fused = [FusedChunk(source=_source(), rrf_score=0.03, channels=("dense",))]
     reranked = [_reranked()]
-    hybrid = MagicMock(return_value=candidates)
+    hybrid = MagicMock(return_value=_candidate_search(candidates))
     fuse = MagicMock(return_value=fused)
     rerank = MagicMock(return_value=reranked)
-    monkeypatch.setattr(module, "search_hybrid_candidates", hybrid)
+    monkeypatch.setattr(module, "search_candidates", hybrid)
     monkeypatch.setattr(import_module("src.retrieval.ranking"), "fuse_rrf", fuse)
     monkeypatch.setattr(import_module("src.retrieval.ranking"), "rerank_chunks", rerank)
     embedder = object()
@@ -146,7 +151,7 @@ def test_public_payload_excludes_internal_storage_key() -> None:
 def test_facade_rejects_final_results_outside_board_scope(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = import_module("src.retrieval.search_documents")
+    module = import_module("src.retrieval.workflow")
     cross_board_source = SourceChunk(
         **{
             **_source().__dict__,
@@ -155,8 +160,8 @@ def test_facade_rejects_final_results_outside_board_scope(
     )
     monkeypatch.setattr(
         module,
-        "search_hybrid_candidates",
-        lambda *_args, **_kwargs: HybridCandidates([], []),
+        "search_candidates",
+        lambda *_args, **_kwargs: _candidate_search(HybridCandidates([], [])),
     )
     monkeypatch.setattr(
         import_module("src.retrieval.ranking"), "fuse_rrf", lambda *_args, **_kwargs: []
@@ -176,12 +181,12 @@ def test_facade_rejects_final_results_outside_board_scope(
 def test_empty_corpus_returns_typed_result_without_loading_reranker(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = import_module("src.retrieval.search_documents")
+    module = import_module("src.retrieval.workflow")
     reranking = import_module("src.reranking.select")
     monkeypatch.setattr(
         module,
-        "search_hybrid_candidates",
-        lambda *_args, **_kwargs: HybridCandidates([], []),
+        "search_candidates",
+        lambda *_args, **_kwargs: _candidate_search(HybridCandidates([], [])),
     )
     monkeypatch.setattr(
         reranking,
@@ -199,14 +204,16 @@ def test_empty_corpus_returns_typed_result_without_loading_reranker(
 def test_facade_deduplicates_dense_and_sparse_matches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = import_module("src.retrieval.search_documents")
+    module = import_module("src.retrieval.workflow")
     source = _source()
     candidates = HybridCandidates(
         dense=[_retrieved()],
         sparse=[SparseHit(source=source, sparse_score=2.0)],
     )
     monkeypatch.setattr(
-        module, "search_hybrid_candidates", lambda *_args, **_kwargs: candidates
+        module,
+        "search_candidates",
+        lambda *_args, **_kwargs: _candidate_search(candidates),
     )
 
     class _Reranker:
@@ -246,9 +253,9 @@ def test_input_validation_precedes_retrieval(
     candidate_k: int,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = import_module("src.retrieval.search_documents")
+    module = import_module("src.retrieval.workflow")
     hybrid = MagicMock()
-    monkeypatch.setattr(module, "search_hybrid_candidates", hybrid)
+    monkeypatch.setattr(module, "search_candidates", hybrid)
 
     with pytest.raises(ValueError):
         search_documents(question, board_id, top_k=top_k, candidate_k=candidate_k)
@@ -259,12 +266,12 @@ def test_input_validation_precedes_retrieval(
 def test_candidate_limit_is_forwarded_to_rrf_before_final_top_k(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = import_module("src.retrieval.search_documents")
+    module = import_module("src.retrieval.workflow")
     candidates = HybridCandidates(dense=[], sparse=[])
-    hybrid = MagicMock(return_value=candidates)
+    hybrid = MagicMock(return_value=_candidate_search(candidates))
     fuse = MagicMock(return_value=[])
     rerank = MagicMock(return_value=[])
-    monkeypatch.setattr(module, "search_hybrid_candidates", hybrid)
+    monkeypatch.setattr(module, "search_candidates", hybrid)
     monkeypatch.setattr(import_module("src.retrieval.ranking"), "fuse_rrf", fuse)
     monkeypatch.setattr(import_module("src.retrieval.ranking"), "rerank_chunks", rerank)
 
@@ -281,7 +288,7 @@ def test_candidate_limit_is_forwarded_to_rrf_before_final_top_k(
 def test_rerank_budget_keeps_the_hybrid_pool_and_full_source(
     monkeypatch: pytest.MonkeyPatch, configured_limit, expected_count
 ) -> None:
-    module = import_module("src.retrieval.search_documents")
+    module = import_module("src.retrieval.workflow")
     if configured_limit is None:
         monkeypatch.delenv("AI_RERANK_CANDIDATE_K", raising=False)
     else:
@@ -289,8 +296,8 @@ def test_rerank_budget_keeps_the_hybrid_pool_and_full_source(
     candidates = HybridCandidates(
         dense=[_retrieved(f"chunk-{i:02d}") for i in range(20)], sparse=[]
     )
-    hybrid = MagicMock(return_value=candidates)
-    monkeypatch.setattr(module, "search_hybrid_candidates", hybrid)
+    hybrid = MagicMock(return_value=_candidate_search(candidates))
+    monkeypatch.setattr(module, "search_candidates", hybrid)
     reranker = MagicMock()
     reranker.score_pairs.side_effect = lambda _question, passages: [0.8] * len(passages)
 

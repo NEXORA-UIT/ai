@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import httpx
 
-from src.generation.deepseek_transport import (
+from src.answering.schemas import GroundedPrompt
+from src.providers.deepseek.transport import (
     DEEPSEEK_API_BASE_URL as DEEPSEEK_API_BASE_URL,
 )
-from src.generation.deepseek_transport import (
+from src.providers.deepseek.transport import (
     DeepSeekJsonTransport,
     DeepSeekRequestError,
     DeepSeekResponseError,
 )
-from src.generation.schemas import GroundedPrompt
 
 DEFAULT_DEEPSEEK_MODEL_ID = "deepseek-flash"
 DEFAULT_DEEPSEEK_TIMEOUT_SECONDS = 30.0

@@ -1,4 +1,3 @@
-"""Shared ingestion defaults that are persisted with document metadata."""
+"""Defaults for the document ingestion workflow."""
 
-DEFAULT_CLEANING_VERSION = "1.0.0"
 DEFAULT_INGESTION_BATCH_SIZE = 2

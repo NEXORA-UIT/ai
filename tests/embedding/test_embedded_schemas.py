@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.ingestion.schemas import Chunk, EmbeddedChunk, EmbeddedDocument
+from src.documents.models import Chunk, EmbeddedChunk, EmbeddedDocument
 
 
 def _make_sample_chunk(index: int = 0, content: str = "Test chunk content") -> Chunk:

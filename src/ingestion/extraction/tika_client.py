@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 
+from src.documents.models import ExtractionResult
 from src.ingestion.exceptions import (
     FileTooLargeError,
     FileValidationError,
@@ -20,7 +21,6 @@ from src.ingestion.extraction.file_validator import (
     ValidatedFile,
     validate_file,
 )
-from src.ingestion.schemas import ExtractionResult
 
 DEFAULT_TIKA_ENDPOINT = "http://127.0.0.1:9998"
 DEFAULT_TIMEOUT_SECONDS = 30.0

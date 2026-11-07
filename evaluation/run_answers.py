@@ -22,7 +22,7 @@ from evaluation.langfuse_trace import LangfuseTraceClient
 from evaluation.latency import LatencySummary, latency_summary
 from evaluation.manifest import load_evaluation_dataset
 from evaluation.schemas import DatasetKind, GoldenCase
-from src.generation.schemas import AnswerResult
+from src.answering.schemas import AnswerResult
 from src.retrieval.schemas import SourceChunk
 
 

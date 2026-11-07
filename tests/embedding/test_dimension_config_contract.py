@@ -1,10 +1,10 @@
-from src.embedding.config import DEFAULT_DENSE_DIMENSION
-from src.ingestion.schemas import (
+from src.documents.models import (
     DEFAULT_DENSE_DIMENSION as INGESTION_DENSE_DIMENSION,
 )
-from src.ingestion.schemas import (
+from src.documents.models import (
     EmbeddedDocument,
 )
+from src.embedding.config import DEFAULT_DENSE_DIMENSION
 
 
 def test_ingestion_schema_reuses_embedding_dimension_config() -> None:

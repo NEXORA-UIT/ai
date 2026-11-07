@@ -9,22 +9,18 @@ The AI service for Nexora. FastAPI provides a health endpoint and internal Swagg
 ## Repository map
 
 ```text
-data/system_prompt.md           grounded-answer system instructions
-src/main.py                     FastAPI application entrypoint
-src/api/                         service-key auth, Swagger routes and payloads
-src/database.py                 read-only PostgreSQL/pgvector probe
-src/ingestion/extraction/       file validation and Apache Tika extraction
-src/chunking/                   BGE-M3 tokenization and semantic chunk splitting
-src/ingestion/cleaning/         text normalization and cleanup
-src/ingestion/{pipeline,cli,preview}.py  ingestion workflow and entrypoints
-src/embedding/                  BGE-M3 embedding generation
-src/retrieval/                  Board-scoped dense and hybrid retrieval
-src/reranking/                  cross-encoder result reranking
-src/generation/                 grounded answer generation and citations
-src/persistence/                PostgreSQL connection, document storage, and scoped chunk reads
-scripts/db/check_db.py          manual database connectivity check
-scripts/db/bootstrap_dev_db.sql local dev/test schema fixture
-scripts/ingestion/run_tika.py   local Apache Tika launcher
+src/main.py                       FastAPI entrypoint and model warmup
+src/api/                          Service key, HTTP routes and payloads
+src/documents/                    Shared document models and lifecycle states
+src/ingestion/                    Extract, clean, chunk, embed and persist
+src/embedding/                    BGE-M3 embeddings for documents and queries
+src/retrieval/                    Board-scoped dense/BM25, fusion and reranking flow
+src/reranking/                    Cross-encoder model and shortlist selection
+src/answering/                    Grounding, system prompt and citations
+src/providers/deepseek/           DeepSeek HTTP transport and answer client
+src/persistence/                  PostgreSQL connections, probes, reads and writes
+scripts/db/                       Connectivity check and confirmed dev schema bootstrap
+scripts/ingestion/                Ingest, inspect, preview and launch local Tika
 evaluation/                     retrieval and answer evaluation tools
 tests/ingestion/                extraction, cleaning, persistence, workflow tests
 tests/chunking/                 chunker and tokenizer tests

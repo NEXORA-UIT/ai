@@ -4,10 +4,8 @@ from typing import Protocol
 
 from tokenizers import Tokenizer
 
+from src.embedding.config import DEFAULT_MODEL_ID, DEFAULT_MODEL_REVISION
 from src.ingestion.exceptions import TokenizerLoadError
-
-DEFAULT_BGE_M3_MODEL_ID = "BAAI/bge-m3"
-DEFAULT_BGE_M3_REVISION = "5617a9f61b028005a4858fdac845db406aefb181"
 
 
 class TokenCounter(Protocol):
@@ -65,8 +63,8 @@ class BgeM3Tokenizer:
 
     def __init__(
         self,
-        model_id: str = DEFAULT_BGE_M3_MODEL_ID,
-        revision: str = DEFAULT_BGE_M3_REVISION,
+        model_id: str = DEFAULT_MODEL_ID,
+        revision: str = DEFAULT_MODEL_REVISION,
     ) -> None:
         self.model_id = model_id
         self._revision = revision

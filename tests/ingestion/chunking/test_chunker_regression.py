@@ -2,10 +2,10 @@
 
 import pytest
 
-from src.chunking.chunker import chunk_document
-from src.chunking.tokenizer import WhitespaceTokenCounter
+from src.documents.models import CleanedDocument, PageSpan
+from src.ingestion.chunking.chunker import chunk_document
+from src.ingestion.chunking.tokenizer import WhitespaceTokenCounter
 from src.ingestion.exceptions import ChunkingError
-from src.ingestion.schemas import CleanedDocument, PageSpan
 
 
 class SingleCharExpensiveTokenCounter:

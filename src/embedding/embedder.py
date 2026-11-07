@@ -6,6 +6,7 @@ from typing import Any, Protocol
 import numpy as np
 import torch
 
+from src.documents.models import Chunk, EmbeddedChunk
 from src.embedding.config import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_DENSE_DIMENSION,
@@ -23,7 +24,6 @@ from src.embedding.exceptions import (
     TokenBudgetExceededError,
     VectorValidationError,
 )
-from src.ingestion.schemas import Chunk, EmbeddedChunk
 
 
 class Embedder(Protocol):

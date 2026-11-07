@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from time import perf_counter
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -15,9 +14,8 @@ from src.retrieval.config import (
     MAX_CANDIDATE_K,
     MAX_SEARCH_TOP_K,
 )
-from src.retrieval.hybrid import search_hybrid_candidates
-from src.retrieval.ranking import fuse_candidates, rerank_fused_candidates
 from src.retrieval.schemas import RerankedChunk, SearchChunk, SearchResult
+from src.retrieval.workflow import retrieve_hybrid
 from src.validation import BOARD_ID_INVALID_UUID, QUESTION_TEXT_REQUIRED
 
 if TYPE_CHECKING:
@@ -65,21 +63,26 @@ def retrieve_reranked_chunks(
 ) -> list[RerankedChunk]:
     """Return scoped evidence with database-backed provenance for generation."""
     board_uuid = _validate_inputs(question, board_id, top_k, candidate_k)
-    started = perf_counter()
-    candidates = search_hybrid_candidates(
+    result = retrieve_hybrid(
         question,
         board_uuid,
+        top_k=top_k,
         candidate_k=candidate_k,
         embedder=embedder,
         storage=storage,
+        reranker=reranker,
     )
-    candidate_ms = (perf_counter() - started) * 1000
-    fused = fuse_candidates(candidates, candidate_k=candidate_k)
-    reranked = rerank_fused_candidates(
-        question, board_uuid, fused, top_k=top_k, reranker=reranker
+    timings = result.stage_latencies_ms
+    logger.info(
+        "RAG retrieval embedding_ms=%.0f dense_ms=%.0f bm25_ms=%.0f "
+        "rrf_ms=%.0f rerank_ms=%.0f",
+        timings["embedding"],
+        timings["dense"],
+        timings["bm25"],
+        timings["rrf"],
+        timings["rerank"],
     )
-    logger.info("RAG retrieval candidates_ms=%.0f", candidate_ms)
-    return reranked
+    return result.reranked
 
 
 def search_documents(

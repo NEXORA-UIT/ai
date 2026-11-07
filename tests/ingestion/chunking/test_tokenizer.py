@@ -2,9 +2,8 @@
 
 import pytest
 
-from src.chunking.tokenizer import (
-    DEFAULT_BGE_M3_MODEL_ID,
-    DEFAULT_BGE_M3_REVISION,
+from src.embedding.config import DEFAULT_MODEL_ID, DEFAULT_MODEL_REVISION
+from src.ingestion.chunking.tokenizer import (
     BgeM3Tokenizer,
     TokenCounter,
     WhitespaceTokenCounter,
@@ -37,8 +36,8 @@ def test_tokenizer_load_error_on_invalid_model():
 @pytest.mark.integration
 def test_bge_m3_tokenizer_token_counting():
     tokenizer = BgeM3Tokenizer()
-    assert tokenizer.name == DEFAULT_BGE_M3_MODEL_ID
-    assert tokenizer.revision == DEFAULT_BGE_M3_REVISION
+    assert tokenizer.name == DEFAULT_MODEL_ID
+    assert tokenizer.revision == DEFAULT_MODEL_REVISION
 
     text = "Hệ thống Nexora AI"
     # "Hệ", "thống", "Ne", "xor", "a", "AI" -> 6 content tokens

@@ -7,8 +7,8 @@ from typing import Protocol
 import psycopg
 from pgvector.psycopg import register_vector
 
-from src.database_config import DATABASE_STORAGE_CONNECT_TIMEOUT_SECONDS
-from src.ingestion.exceptions import DatabaseConnectionError
+from src.persistence.config import DATABASE_STORAGE_CONNECT_TIMEOUT_SECONDS
+from src.persistence.errors import DatabaseConnectionError
 
 
 class ConnectionProvider(Protocol):

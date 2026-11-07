@@ -6,7 +6,7 @@ import json
 from argparse import Namespace
 from dataclasses import dataclass
 
-from src.ingestion.console_config import (
+from scripts.ingestion.console_config import (
     CHUNK_PREVIEW_CHARS,
     CLEANED_TEXT_PREVIEW_CHARS,
     CONSOLE_SEPARATOR_WIDTH,
@@ -15,7 +15,7 @@ from src.ingestion.console_config import (
     EMBEDDING_PREVIEW_DIMENSIONS,
     UNKNOWN_METADATA_LABEL,
 )
-from src.ingestion.schemas import (
+from src.documents.models import (
     ChunkedDocument,
     CleanedDocument,
     EmbeddedDocument,

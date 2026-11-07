@@ -10,7 +10,7 @@ from evaluation.answer_metrics import load_canonical_source_chunks
 from evaluation.faithfulness import FaithfulnessClaim, FaithfulnessResult
 from evaluation.run_answers import run_answers
 from evaluation.schemas import DatasetKind
-from src.generation.schemas import AnswerResult, Citation
+from src.answering.schemas import AnswerResult, Citation
 from src.retrieval.schemas import SourceChunk
 
 _DATASET = Path(__file__).parents[2] / "evaluation" / "golden" / "synthetic"

@@ -18,7 +18,7 @@ pgvector và một Apache Tika server.
 Chạy từ thư mục gốc repository AI:
 
 ```powershell
-uv run --locked --env-file .env python -m src.ingestion.cli --bootstrap-db --confirm-db-name nexora_ai_demo
+uv run --locked --env-file .env python -m scripts.db.bootstrap --confirm-db-name nexora_ai_demo
 uv run --locked --env-file .env uvicorn src.main:app --host 127.0.0.1 --port 8000
 ```
 
@@ -82,8 +82,8 @@ vào Swagger và không chia sẻ trong ảnh chụp.
 
 Nếu cần một lượt demo nhanh hơn trên corpus nhỏ, thử `top_k: 3` và
 `candidate_k: 5`; ít ứng viên hơn sẽ giảm việc rerank nhưng cũng có thể bỏ
-sót nguồn. Log API ghi thời gian `embedding_ms`, `dense_ms`, `sparse_ms`,
-`rerank_ms` và `generation_ms` để xác định bước chậm thực tế.
+sót nguồn. Log API ghi thời gian `embedding_ms`, `dense_ms`, `bm25_ms`,
+`rrf_ms`, `rerank_ms` và `generation_ms` để xác định bước chậm thực tế.
 
 Route này vẫn là API nội bộ của demo. `board_id` chỉ giới hạn dữ liệu truy vấn;
 Express phải xác thực người dùng và quyền Board trước khi tích hợp public API.

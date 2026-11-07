@@ -7,15 +7,15 @@ from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
 
-from src.generation.config import DEFAULT_CONTEXT_CHAR_LIMIT
-from src.generation.schemas import GroundedPrompt
+from src.answering.config import DEFAULT_CONTEXT_CHAR_LIMIT
+from src.answering.schemas import GroundedPrompt
 from src.retrieval.schemas import RerankedChunk
 
 
 @lru_cache(maxsize=1)
 def load_system_instructions() -> str:
     """Load the reviewed grounded-answer instructions from the repository."""
-    prompt_path = Path(__file__).resolve().parents[2] / "data" / "system_prompt.md"
+    prompt_path = Path(__file__).with_name("system_prompt.md")
     return prompt_path.read_text(encoding="utf-8").strip()
 
 

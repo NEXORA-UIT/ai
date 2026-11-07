@@ -7,7 +7,7 @@ import pytest
 from evaluation.answer_metrics import citation_accuracy, latency_summary
 from evaluation.latency import LatencySummary
 from evaluation.schemas import GoldenCase
-from src.generation.schemas import AnswerResult, Citation
+from src.answering.schemas import AnswerResult, Citation
 from src.retrieval.schemas import SourceChunk
 
 _BOARD_ID = "11111111-1111-4111-8111-111111111111"

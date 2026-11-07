@@ -9,8 +9,15 @@ from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.chunking.config import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
+from src.documents.models import (
+    ChunkedDocument,
+    CleanedDocument,
+    EmbeddedDocument,
+    ExtractionResult,
+    FileValidationResult,
+)
 from src.embedding.runtime import get_default_embedder
+from src.ingestion.chunking.config import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE
 from src.ingestion.cleaning.cleaner import clean_document
 from src.ingestion.config import DEFAULT_INGESTION_BATCH_SIZE
 from src.ingestion.exceptions import FileTooLargeError
@@ -20,18 +27,11 @@ from src.ingestion.extraction.tika_client import (
     DEFAULT_TIMEOUT_SECONDS,
     TikaClient,
 )
-from src.ingestion.schemas import (
-    ChunkedDocument,
-    CleanedDocument,
-    EmbeddedDocument,
-    ExtractionResult,
-    FileValidationResult,
-)
 from src.persistence.document_storage import DocumentStorage, sanitize_error_message
 
 if TYPE_CHECKING:
-    from src.chunking.tokenizer import TokenCounter
     from src.embedding.embedder import Embedder
+    from src.ingestion.chunking.tokenizer import TokenCounter
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +125,7 @@ def extract_clean_and_chunk(
             - CleanedDocument: Cleaned text and metadata.
             - ChunkedDocument: Ordered chunks with verified offsets and token counts.
     """
-    from src.chunking.chunker import chunk_document
+    from src.ingestion.chunking.chunker import chunk_document
 
     extraction, cleaned = extract_and_clean(
         file_path=file_path,

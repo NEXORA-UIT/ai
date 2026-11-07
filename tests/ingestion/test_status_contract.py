@@ -2,7 +2,7 @@ from typing import get_args
 from uuid import UUID
 
 from src.api.schemas import DocumentUploadResponse
-from src.ingestion.status import DocumentStatus
+from src.documents.status import DocumentStatus
 
 
 def test_document_status_values_match_ingestion_database_contract() -> None:

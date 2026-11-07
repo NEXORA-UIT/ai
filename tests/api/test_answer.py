@@ -51,10 +51,10 @@ def _post(client: TestClient, **overrides):
 
 
 def test_missing_prompt_returns_sanitized_error(monkeypatch) -> None:
-    from src.generation import service
+    from src.answering import service
 
     def fail_generation(*_args, **_kwargs):
-        raise FileNotFoundError("/app/data/system_prompt.md")
+        raise FileNotFoundError("/app/src/answering/system_prompt.md")
 
     monkeypatch.setenv("AI_SERVICE_API_KEY", API_KEY)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
@@ -70,7 +70,7 @@ def test_missing_prompt_returns_sanitized_error(monkeypatch) -> None:
 
 def test_answer_returns_grounded_text_and_verified_citation(monkeypatch) -> None:
     retrieval_module = import_module("src.retrieval.search_documents")
-    provider_module = import_module("src.generation.provider")
+    provider_module = import_module("src.providers.deepseek.client")
 
     monkeypatch.setenv("AI_SERVICE_API_KEY", API_KEY)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-deepseek-key")

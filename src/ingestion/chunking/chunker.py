@@ -2,14 +2,14 @@
 
 from typing import Any
 
-from src.chunking.config import (
-    CHUNKING_VERSION,
+from src.documents.models import Chunk, ChunkedDocument, CleanedDocument, PageSpan
+from src.documents.versions import CHUNKING_VERSION
+from src.ingestion.chunking.config import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
 )
-from src.chunking.tokenizer import BgeM3Tokenizer, TokenCounter
+from src.ingestion.chunking.tokenizer import BgeM3Tokenizer, TokenCounter
 from src.ingestion.exceptions import ChunkingError
-from src.ingestion.schemas import Chunk, ChunkedDocument, CleanedDocument, PageSpan
 
 # Separator priority hierarchy
 SEPARATORS = ["\n\n", "\n", ". ", " "]

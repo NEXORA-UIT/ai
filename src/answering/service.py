@@ -7,13 +7,13 @@ import os
 from time import perf_counter
 from uuid import UUID
 
-from src.generation.answer import (
+from src.answering.answer import (
     AnswerProviderError,
     EvidenceScopeError,
     answer_with_sources,
 )
-from src.generation.schemas import AnswerResult, GroundedPrompt
-from src.ingestion.exceptions import DatabaseConnectionError
+from src.answering.schemas import AnswerResult, GroundedPrompt
+from src.persistence.errors import DatabaseConnectionError
 from src.retrieval.schemas import RerankedChunk
 
 logger = logging.getLogger("uvicorn.error").getChild("nexora.generation")
@@ -33,7 +33,7 @@ class AnswerGenerationError(RuntimeError):
 
 class _LazyDeepSeekClient:
     def complete(self, prompt: GroundedPrompt) -> dict[str, object]:
-        from src.generation.provider import DeepSeekAnswerClient
+        from src.providers.deepseek.client import DeepSeekAnswerClient
 
         with DeepSeekAnswerClient() as client:
             return client.complete(prompt)

@@ -18,7 +18,7 @@ Tài liệu này mô tả kiến trúc, thiết kế và cách vận hành bư�
 
 | Thuộc tính | Giá trị chuẩn | Ghi chú |
 |---|---|---|
-| **Model ID** | `BAAI/bge-m3` | Ghim trong `src/embedding/config.py` và `src/chunking/tokenizer.py` |
+| **Model ID** | `BAAI/bge-m3` | Ghim trong `src/embedding/config.py` và `src/ingestion/chunking/tokenizer.py` |
 | **Model Revision** | `5617a9f61b028005a4858fdac845db406aefb181` | Tuyệt đối không dùng `latest` để tránh trôi trọng số |
 | **Thư viện** | `sentence-transformers>=3.4,<7` | Tự động xử lý pooling `[CLS]`, batching và chuẩn hóa L2 |
 | **Kích thước Vector** | `1024` chiều | Khớp với định nghĩa cột vector trong PostgreSQL pgvector |
@@ -92,17 +92,17 @@ Trước khi trả về, từng batch vector được kiểm định nghiêm ng�
 
 ### Trích xuất, Chunking và Embedding trên CPU:
 ```bash
-python -m src.ingestion.preview --file path/to/document.pdf --embed
+python -m scripts.ingestion.preview --file path/to/document.pdf --embed
 ```
 
 ### Xuất định dạng JSON kèm thông tin vector:
 ```bash
-python -m src.ingestion.preview --file path/to/document.txt --embed --json
+python -m scripts.ingestion.preview --file path/to/document.txt --embed --json
 ```
 
 ### Tùy chỉnh Batch size và xem trước 5 chiều đầu:
 ```bash
-python -m src.ingestion.preview --file path/to/document.docx --embed --batch-size 4
+python -m scripts.ingestion.preview --file path/to/document.docx --embed --batch-size 4
 ```
 
 ---

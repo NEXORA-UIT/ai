@@ -1,6 +1,6 @@
 import os
 
-from src.local_env import load_local_env
+from scripts.local_env import load_local_env
 
 
 def test_env_file_supplies_defaults_without_overriding_process(tmp_path, monkeypatch):

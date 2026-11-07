@@ -9,7 +9,7 @@ from pathlib import Path
 from evaluation.latency import LatencySummary, latency_summary
 from evaluation.manifest import load_evaluation_dataset
 from evaluation.schemas import GoldenCase
-from src.generation.schemas import AnswerResult, Citation
+from src.answering.schemas import AnswerResult, Citation
 from src.retrieval.schemas import SourceChunk
 
 __all__ = [

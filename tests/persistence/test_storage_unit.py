@@ -5,19 +5,19 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.ingestion.exceptions import (
-    BoardMismatchError,
-    DocumentProcessingConflictError,
-    ProcessingOwnershipLostError,
-    StorageValidationError,
-)
-from src.ingestion.schemas import (
+from src.documents.models import (
     Chunk,
     EmbeddedChunk,
     EmbeddedDocument,
     FileValidationResult,
 )
 from src.persistence.document_storage import DocumentStorage
+from src.persistence.errors import (
+    BoardMismatchError,
+    DocumentProcessingConflictError,
+    ProcessingOwnershipLostError,
+    StorageValidationError,
+)
 
 
 def create_dummy_embedded_doc(

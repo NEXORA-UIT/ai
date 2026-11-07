@@ -16,20 +16,20 @@ from typing import Any
 import pytest
 from psycopg import errors
 
-from src.database import probe_pgvector
-from src.ingestion.exceptions import (
-    BoardMismatchError,
-    DatabaseConnectionError,
-    DocumentProcessingConflictError,
-    ProcessingOwnershipLostError,
-)
-from src.ingestion.schemas import (
+from src.documents.models import (
     Chunk,
     EmbeddedChunk,
     EmbeddedDocument,
     FileValidationResult,
 )
 from src.persistence.document_storage import DocumentStorage
+from src.persistence.errors import (
+    BoardMismatchError,
+    DatabaseConnectionError,
+    DocumentProcessingConflictError,
+    ProcessingOwnershipLostError,
+)
+from src.persistence.probe import probe_pgvector
 
 
 def get_test_db_url() -> str | None:

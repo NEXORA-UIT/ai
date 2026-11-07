@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pgvector import Vector
 
-from src.ingestion.status import DocumentStatus
+from src.documents.status import DocumentStatus
 from src.persistence.postgres import ConnectionProvider, connect_pgvector
 from src.retrieval.metadata import EmbeddingFingerprint
 from src.retrieval.schemas import RetrievedChunk, SourceChunk

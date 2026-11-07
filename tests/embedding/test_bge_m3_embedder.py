@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import numpy as np
 import pytest
 
+from src.documents.models import Chunk
 from src.embedding.embedder import BgeM3Embedder
 from src.embedding.exceptions import (
     DeviceUnavailableError,
@@ -17,7 +18,6 @@ from src.embedding.exceptions import (
     TokenBudgetExceededError,
     VectorValidationError,
 )
-from src.ingestion.schemas import Chunk
 
 
 class FakeTokenizer:

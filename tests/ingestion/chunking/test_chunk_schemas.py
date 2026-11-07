@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.ingestion.schemas import Chunk, ChunkedDocument
+from src.documents.models import Chunk, ChunkedDocument
 
 
 def test_chunk_attributes_and_post_init_validation():

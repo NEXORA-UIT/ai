@@ -7,11 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from src.chunking.tokenizer import WhitespaceTokenCounter
+from src.documents.models import EmbeddedChunk, ExtractionResult
 from src.embedding.config import DEFAULT_NORMALIZE_EMBEDDINGS
+from src.ingestion.chunking.tokenizer import WhitespaceTokenCounter
 from src.ingestion.extraction.tika_client import TikaClient
 from src.ingestion.pipeline import ingest_file_to_storage
-from src.ingestion.schemas import EmbeddedChunk, ExtractionResult
 from src.retrieval.dense import search_by_text
 
 _QUERY_VECTOR = [1.0, 0.0] + [0.0] * 1022

@@ -4,7 +4,11 @@ import os
 
 import psycopg
 
-from src.database import MissingVectorExtension, VectorOperationError, probe_pgvector
+from src.persistence.probe import (
+    MissingVectorExtension,
+    VectorOperationError,
+    probe_pgvector,
+)
 
 
 def main() -> int:

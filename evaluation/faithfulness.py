@@ -9,13 +9,13 @@ from typing import Protocol
 
 import httpx
 
-from src.generation.deepseek_transport import (
+from src.answering.schemas import AnswerResult
+from src.providers.deepseek.client import DEFAULT_DEEPSEEK_MODEL_ID
+from src.providers.deepseek.transport import (
     DeepSeekJsonTransport,
     DeepSeekRequestError,
     DeepSeekResponseError,
 )
-from src.generation.provider import DEFAULT_DEEPSEEK_MODEL_ID
-from src.generation.schemas import AnswerResult
 from src.retrieval.schemas import SourceChunk
 
 DEFAULT_DEEPSEEK_JUDGE_MODEL_ID = DEFAULT_DEEPSEEK_MODEL_ID

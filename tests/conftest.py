@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from src.local_env import load_local_env
+from scripts.local_env import load_local_env
 
 
 def pytest_configure(config) -> None:

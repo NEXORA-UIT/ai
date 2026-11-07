@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.ingestion.status import DocumentStatus
+from src.documents.status import DocumentStatus
 from src.retrieval.config import (
     DEFAULT_CANDIDATE_K,
     DEFAULT_SEARCH_TOP_K,

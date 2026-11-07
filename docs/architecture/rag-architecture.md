@@ -22,6 +22,23 @@ target deployment flow. The internal demo routes accept a service key.
 
 The backend's existing Node.js workers continue to handle other jobs; they are not part of RAG ingestion.
 
+## Source layout
+
+- `src/api/` owns HTTP contracts. `src/main.py` assembles the FastAPI app and
+  controls warmup.
+- `src/ingestion/` owns file processing. `src/documents/` defines the document
+  models and status used by ingestion, embeddings, and persistence.
+- `src/persistence/` owns PostgreSQL errors, scoped reads, and transactional
+  writes. Both retrieval and ingestion use it.
+- `src/retrieval/` owns the hybrid workflow shared by the API and evaluation.
+  `src/answering/` turns retrieved evidence into answers and citations.
+  `src/providers/deepseek/` handles the provider protocol and transport.
+- `scripts/ingestion/` holds local commands. `scripts/db/bootstrap.py` checks
+  the connected database name before applying the dev schema fixture.
+  `evaluation/` holds the datasets, metrics, and reports.
+
+See the [README](../../README.md#repository-map) for the full source map.
+
 ## Target ingestion flow
 
 The frontend sends a document to Express. Express checks authorization, manages the file and metadata, then queues background work through BullMQ. The Python Worker reads the document, creates chunks and embeddings using **BAAI/bge-m3**, then writes data to PostgreSQL + pgvector using psycopg 3. Ingestion must handle failures and retries safely. When a document is reprocessed, an older result must not overwrite the new one. Queue messages must not contain secrets or large document contents.

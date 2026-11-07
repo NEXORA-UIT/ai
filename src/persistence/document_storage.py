@@ -18,8 +18,9 @@ from typing import TYPE_CHECKING, Any
 
 import psycopg
 
+from src.documents.status import DocumentStatus
 from src.embedding.config import DEFAULT_DENSE_DIMENSION, L2_NORM_TOLERANCE
-from src.ingestion.exceptions import (
+from src.persistence.errors import (
     BoardMismatchError,
     DatabaseConnectionError,
     DocumentProcessingConflictError,
@@ -27,11 +28,10 @@ from src.ingestion.exceptions import (
     StorageError,
     StorageValidationError,
 )
-from src.ingestion.status import DocumentStatus
 from src.persistence.postgres import connect_pgvector
 
 if TYPE_CHECKING:
-    from src.ingestion.schemas import (
+    from src.documents.models import (
         EmbeddedDocument,
         FileValidationResult,
     )

@@ -2,9 +2,9 @@
 
 import pytest
 
-from src.chunking.chunker import chunk_document
-from src.chunking.tokenizer import WhitespaceTokenCounter
-from src.ingestion.schemas import CleanedDocument, PageSpan
+from src.documents.models import CleanedDocument, PageSpan
+from src.ingestion.chunking.chunker import chunk_document
+from src.ingestion.chunking.tokenizer import WhitespaceTokenCounter
 
 
 class TestChunker:
@@ -180,8 +180,3 @@ class TestChunker:
             assert c1.start_offset == c2.start_offset
             assert c1.end_offset == c2.end_offset
             assert c1.token_count == c2.token_count
-
-    def test_ingestion_facade_keeps_chunk_document_export(self):
-        from src.ingestion import chunk_document as public_chunk_document
-
-        assert public_chunk_document is chunk_document

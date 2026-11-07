@@ -107,33 +107,33 @@ $env:DATABASE_URL = "postgresql://user:password@localhost:5432/my_dev_db"
 ### 1. Khởi tạo / Bootstrap Schema trên DB Dev
 Yêu cầu truyền tên database xác nhận `--confirm-db-name` để ngăn chặn chạy nhầm DB:
 ```powershell
-python -m src.ingestion.cli --bootstrap-db --confirm-db-name my_dev_db
+python -m scripts.db.bootstrap --confirm-db-name my_dev_db
 ```
 
 ### 2. Ingest Tài liệu Mới vào Database
 ```powershell
-python -m src.ingestion.cli -f tests/fixtures/synthetic_smoke_doc.txt `
+python -m scripts.ingestion.cli -f tests/fixtures/synthetic_smoke_doc.txt `
     --board-id 11111111-1111-1111-1111-111111111111 `
     --uploaded-by 22222222-2222-2222-2222-222222222222
 ```
 
 ### 3. Reprocess Tài liệu Đã Có
 ```powershell
-python -m src.ingestion.cli -f tests/fixtures/synthetic_smoke_doc.txt `
+python -m scripts.ingestion.cli -f tests/fixtures/synthetic_smoke_doc.txt `
     --board-id 11111111-1111-1111-1111-111111111111 `
     --document-id <DOCUMENT_UUID>
 ```
 
 ### 4. Thu hồi Quyền (Reclaim) nếu Bị Treo ở PROCESSING
 ```powershell
-python -m src.ingestion.cli -f tests/fixtures/synthetic_smoke_doc.txt `
+python -m scripts.ingestion.cli -f tests/fixtures/synthetic_smoke_doc.txt `
     --board-id 11111111-1111-1111-1111-111111111111 `
     --document-id <DOCUMENT_UUID> --reclaim
 ```
 
 ### 5. Kiểm tra (Inspect) Bản ghi Đã Lưu
 ```powershell
-python -m src.ingestion.cli --inspect <DOCUMENT_UUID>
+python -m scripts.ingestion.cli --inspect <DOCUMENT_UUID>
 ```
 
 ---

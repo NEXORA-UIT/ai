@@ -9,14 +9,14 @@ from dataclasses import asdict
 import httpx
 import pytest
 
-from src.generation.answer import EvidenceScopeError, answer_with_sources
-from src.generation.provider import (
+from src.answering.answer import EvidenceScopeError, answer_with_sources
+from src.answering.schemas import GroundedPrompt
+from src.providers.deepseek.client import (
     DEEPSEEK_API_BASE_URL,
     DEFAULT_DEEPSEEK_MODEL_ID,
     DeepSeekAnswerClient,
     DeepSeekProviderError,
 )
-from src.generation.schemas import GroundedPrompt
 from src.retrieval.schemas import RerankedChunk, SourceChunk
 
 
