@@ -1,0 +1,77 @@
+name: nexora-ai
+
+x-ai-image: &ai-image nexora-ai:local
+
+x-demo-database-url: &demo-database-url postgresql://nexora_demo:nexora-local-only@db:5432/nexora_ai_demo
+
+services:
+  db:
+    image: pgvector/pgvector:0.8.7-pg17-trixie
+    environment:
+      POSTGRES_DB: nexora_ai_demo
+      POSTGRES_USER: nexora_demo
+      POSTGRES_PASSWORD: nexora-local-only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U nexora_demo -d nexora_ai_demo"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  tika:
+    image: apache/tika:3.3.3.0
+    ports:
+      - "127.0.0.1:${AI_TIKA_PORT:-9998}:9998"
+
+  schema:
+    image: *ai-image
+    pull_policy: never
+    environment:
+      DATABASE_URL: *demo-database-url
+    command: ["python", "-m", "scripts.db.bootstrap", "--confirm-db-name", "nexora_ai_demo"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    image: *ai-image
+    build: .
+    environment:
+      DATABASE_URL: *demo-database-url
+      TIKA_SERVER_ENDPOINT: http://tika:9998
+      AI_SERVICE_API_KEY: ${AI_SERVICE_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      AI_WARMUP_MODELS: "${AI_WARMUP_MODELS:-1}"
+      AI_RERANK_CANDIDATE_K: "${AI_RERANK_CANDIDATE_K:-5}"
+      AI_RERANK_MAX_LENGTH: "${AI_RERANK_MAX_LENGTH:-192}"
+      AI_UPLOAD_DIRECTORY: /var/lib/nexora/uploads
+      HF_HOME: /models/huggingface
+    volumes:
+      - uploads:/var/lib/nexora/uploads
+      - model_cache:/models/huggingface
+    ports:
+      - "127.0.0.1:${NEXORA_AI_PORT:-8000}:8000"
+    depends_on:
+      schema:
+        condition: service_completed_successfully
+      tika:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3);
+          urllib.request.urlopen('http://tika:9998/version', timeout=3)
+      interval: 5s
+      timeout: 8s
+      retries: 12
+      start_period: 5m
+
+volumes:
+  postgres_data:
+  uploads:
+  model_cache:

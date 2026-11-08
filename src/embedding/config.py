@@ -1,13 +1,7 @@
 """Configuration constants for BGE-M3 embedding."""
 
-from src.ingestion.tokenizer import (
-    DEFAULT_BGE_M3_MODEL_ID,
-    DEFAULT_BGE_M3_REVISION,
-)
-
-# Re-use pinned identifiers from tokenizer to guarantee zero divergence
-DEFAULT_MODEL_ID: str = DEFAULT_BGE_M3_MODEL_ID
-DEFAULT_MODEL_REVISION: str = DEFAULT_BGE_M3_REVISION
+DEFAULT_MODEL_ID: str = "BAAI/bge-m3"
+DEFAULT_MODEL_REVISION: str = "5617a9f61b028005a4858fdac845db406aefb181"
 
 # Dense embedding specifications
 DEFAULT_DENSE_DIMENSION: int = 1024
