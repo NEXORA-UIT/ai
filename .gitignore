@@ -7,4 +7,6 @@ __pycache__/
 *.py[cod]
 .env
 .local/
+.tmp-evaluation/
 .superpowers/
+compose.override.yaml

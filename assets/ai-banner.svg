@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="430" viewBox="0 0 1600 430" role="img" aria-labelledby="title desc">
+  <title id="title">Nexora AI — Research foundation</title>
+  <desc id="desc">A dark navy banner with document, vector, and retrieval motifs.</desc>
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#26344A" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="430" rx="28" fill="#0B1220"/>
+  <rect width="1600" height="430" rx="28" fill="url(#grid)" opacity=".5"/>
+  <path d="M0 336H650" stroke="#2563EB" stroke-width="4"/>
+  <path d="M650 336H820" stroke="#18B6A4" stroke-width="4"/>
+  <circle cx="1360" cy="215" r="148" fill="#142444"/>
+  <circle cx="1360" cy="215" r="102" fill="none" stroke="#2563EB" stroke-width="3"/>
+  <circle cx="1360" cy="215" r="54" fill="none" stroke="#18B6A4" stroke-width="3"/>
+  <circle cx="1360" cy="67" r="8" fill="#18B6A4"/>
+  <circle cx="1482" cy="297" r="8" fill="#62A0FF"/>
+  <circle cx="1231" cy="290" r="8" fill="#18B6A4"/>
+  <path d="M1280 130H1348V224H1280z" fill="#111C2E" stroke="#6FA3FF" stroke-width="3"/>
+  <path d="M1294 151H1335M1294 168H1335M1294 185H1322" stroke="#A6B4C8" stroke-width="4" stroke-linecap="round"/>
+  <rect x="110" y="82" width="68" height="68" rx="20" fill="#18B6A4"/>
+  <path d="M129 129V103L159 131V104" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="204" y="133" fill="#E9F0FA" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="33" font-weight="700" letter-spacing="5">NEXORA</text>
+  <text x="110" y="226" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="56" font-weight="700">AI SERVICE</text>
+  <text x="110" y="292" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="56" font-weight="700">RESEARCH <tspan fill="#4DD6C5">FOUNDATION.</tspan></text>
+  <text x="112" y="374" fill="#A6B4C8" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="19" letter-spacing="3">FASTAPI  /  POSTGRESQL + PGVECTOR  /  RAG ROADMAP</text>
+</svg>
